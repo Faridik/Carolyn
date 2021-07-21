@@ -1,0 +1,10 @@
+version: "3.9"
+
+services: 
+    spreadsheets:
+        container_name: "carolyn-spreadsheets"
+        build: ./SpreadsheetsService
+        environment: 
+            SECRETKEY: "HELLO-WORLD-@21XX 15AF"
+        volumes: 
+            - ./SpreadsheetsService:/app:Z
