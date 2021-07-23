@@ -9,4 +9,11 @@ services:
         environment: 
             SECRETKEY: "HELLO-WORLD-@21XX 15AF"
         volumes: 
-            - ./SpreadsheetsService:/app:Z
+            - ./SpreadsheetsService:/app
+    telegrambot:
+        container_name: "carolyn-telegrambot"
+        build: ./TelegramBot
+        environment: 
+            TOKEN: "1903048555:AAFK-d7prKvOvwwXo0IPzeRwJ1ZcuOT5ty8"
+        volumes: 
+            - ./TelegramBot:/app
