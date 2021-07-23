@@ -1,6 +1,12 @@
-import pathlib
-import os
+from flask import Flask
 
-f = open("/app/file.txt", "a")
-f.write("We wrote some text")
-f.close()
+app = Flask(__name__)
+
+
+@app.route("/")
+def hello_world():
+    return "Hello world!\n"
+
+
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0")

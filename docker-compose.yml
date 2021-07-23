@@ -4,6 +4,8 @@ services:
     spreadsheets:
         container_name: "carolyn-spreadsheets"
         build: ./SpreadsheetsService
+        ports: 
+            - "5000:5000"
         environment: 
             SECRETKEY: "HELLO-WORLD-@21XX 15AF"
         volumes: 
