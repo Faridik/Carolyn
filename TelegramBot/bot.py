@@ -2,12 +2,13 @@ import logging
 import os
 import platform
 import time
+import requests
 
 from telegram.ext import Updater
 from telegram.ext import CommandHandler
 from telegram.ext import MessageHandler, Filters
 
-TOKEN = "1903048555:AAFK-d7prKvOvwwXo0IPzeRwJ1ZcuOT5ty8" # os.environ["TOKEN"]
+TOKEN = "1903048555:AAFK-d7prKvOvwwXo0IPzeRwJ1ZcuOT5ty8"  # os.environ["TOKEN"]
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -21,18 +22,19 @@ dispatcher = updater.dispatcher
 # Стартовое сообщение (к команде /start)
 def start(update, context):
 
+    p = context.args[0] if len(context.args) > 0 else None
+
+    data = requests.get("http://127.0.0.1:5000/auth").text
+
     context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=f"Hello World! It's {time.time()}\n" \
-            f"{platform.platform()}\n\n"
+        text=f"Hello World! {context.args} Authorized? {data}",
     )
+
 
 # Ответ на не командное сообщение (отвечает тем же сообщением)
 def echo(update, context):
-    context.bot.send_message(
-        chat_id=update.effective_chat.id, 
-        text=update.message.text
-    )
+    context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
 
 
 # ==================================================================== HANDLERS
