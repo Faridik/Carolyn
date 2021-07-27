@@ -10,7 +10,6 @@ class Student:
         self.tg_id = None
         self.assignments = []
 
-    @property
     def add_assignment(self, assignment: Assignment):
         self.assignments.append(assignment)
 

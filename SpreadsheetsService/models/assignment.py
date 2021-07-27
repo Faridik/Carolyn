@@ -1,7 +1,7 @@
 class Assignment:
     """Задание."""
 
-    def __init__(self, weight: float, values: tuple):
+    def __init__(self, weight: float, values):
         self.weight = weight
         self.values = values
 

@@ -14,7 +14,7 @@ class Group:
 
     def __init__(self, group_id: int):
         self.group_id: int = group_id
-        self.students: Student = []
+        self._students: Student = []
 
     def __iter__(self):
         """Делегирует итератор на список студентов.
@@ -24,18 +24,18 @@ class Group:
         for student in group
         ```
         """
-        return iter(self.students)
+        return iter(self._students)
 
     def add_student(self, student: Student):
         """Добавить студента в группу."""
-        self.students.append(student)
+        self._students.append(student)
 
     def get_student_by_number(self, number: int) -> Student:
         """Возвращает студента по его номеру, если номера нет, то поднимает
         ошибку."""
         f = lambda s: number == s.number
         try:
-            return next(filter(f, self.students))
+            return next(filter(f, self._students))
         except StopIteration:
             raise StudentNotFound("Не могу найти студента по номеру")
 
@@ -50,15 +50,15 @@ class Group:
         """
 
         f = lambda s: name.lower() in s.name.lower()
-        return list(filter(f, self.students))
+        return list(filter(f, self._students))
 
     def top(self, n: int = None) -> list:
         """Топ N студентов группы по среднему баллу. Возвращает весь список,
         если N не указано."""
-        n = len(self.students) if n is None else n
-        return sorted(self.students, key=lambda student: student.grade)[:n]
+        n = len(self._students) if n is None else n
+        return sorted(self._students, key=lambda student: student.grade)[:n]
 
     def between(self, a: float, b: float) -> list:
         """Список студентов, у которых оценка между [a, b]."""
         f = lambda student: a < student.average < b
-        return list(filter(f, self.students))
+        return list(filter(f, self._students))
