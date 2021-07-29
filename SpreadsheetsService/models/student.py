@@ -4,10 +4,11 @@ from .assignment import Assignment
 class Student:
     """Позволяет выполнять операции над студентами."""
 
-    def __init__(self, number: int, name: str):
+    def __init__(self, number: int, name: str, group_id : int, tg_id : int = None):
         self.number: int = number
         self.name: str = name
-        self.tg_id = None
+        self.group_id: int = group_id
+        self.tg_id: int = tg_id
         self.assignments = []
 
     def add_assignment(self, assignment: Assignment):

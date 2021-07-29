@@ -1,7 +1,8 @@
 class Assignment:
     """Задание."""
 
-    def __init__(self, weight: float, values):
+    def __init__(self, name: str, values: list, weight: float=1):
+        self.name = name
         self.weight = weight
         self.values = values
 
