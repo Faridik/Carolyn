@@ -1,6 +1,7 @@
 .vscode
-SpreadsheetsService/client_secret.json
-SpreadsheetsService/token.json
 SpreadsheetsService/models/__pycache__
 SpreadsheetsService/utils/__pycache__
 SpreadsheetsService/tests/__pycache__
+SpreadsheetsService/manager/__pycache__
+SpreadsheetsService/manager/client_secret.json
+SpreadsheetsService/manager/token.json
