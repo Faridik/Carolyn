@@ -1,7 +1,9 @@
-from flask import Flask
+import flask
 import time
+import models
+from manager import *
 
-app = Flask(__name__)
+app = flask.Flask(__name__)
 
 
 @app.route("/")
@@ -11,8 +13,12 @@ def hello_world():
 
 @app.route("/auth")
 def auth():
-    is_auth = int(time.time())
-    return f"{is_auth % 2 == 0}"
+    # TODO: return json text instead of text/html.
+    token = flask.request.args.get("token")
+    tg_id = flask.request.args.get("tg_id")
+    manager = Manager()
+    student = manager.get_student_by_name("Дзюба")
+    return str(student)
 
 
 if __name__ == "__main__":

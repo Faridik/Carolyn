@@ -24,11 +24,21 @@ def start(update, context):
 
     p = context.args[0] if len(context.args) > 0 else None
 
-    data = requests.get("http://127.0.0.1:5000/auth").text
+    if p is None:
+        context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text="Нет доступа к боту",
+        )
+        return
+
+    data = requests.get(
+        "http://127.0.0.1:5000/auth",
+        params={"token": p, "tg_id": update.effective_chat.id},
+    ).json()
 
     context.bot.send_message(
         chat_id=update.effective_chat.id,
-        text=f"Hello World! {context.args} Authorized? {data}",
+        text=f"Привет, {data}",
     )
 
 
