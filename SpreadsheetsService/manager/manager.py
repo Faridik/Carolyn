@@ -20,8 +20,8 @@ ASSIGNMENT_SUBJECT = 3
 ASSIGNMENT_WEIGHTS = 4
 ASSIGNMENT_RANGES = 5
 ASSIGNMENT_ALLOWS = 6
-TOKEN_FILE = pathlib.Path() / "manager" / "token.json"
-CLIENT_SECRET_FILE = pathlib.Path() / "manager" / "client_secret.json"
+TOKEN_FILE = pathlib.Path() / ".secrets" / "token.json"
+CLIENT_SECRET_FILE = pathlib.Path() / ".secrets" / "client_secret.json"
 
 
 class Manager:

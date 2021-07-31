@@ -1,10 +1,17 @@
-class Assignment:
+class Assignment(dict):
     """Задание."""
 
-    def __init__(self, name: str, values: list, weight: float=1):
+    def __init__(self, name: str, points: list, weight: float = 1):
         self.name = name
         self.weight = weight
-        self.values = values
+        self.points = points
+        dict.__init__(
+            self,
+            name=self.name,
+            weight=self.weight,
+            points=self.points,
+            total=self.total,
+        )
 
     @property
     def total(self) -> float:
@@ -12,4 +19,4 @@ class Assignment:
 
         `вес*СУММ(рез-ты)`
         """
-        return sum(self.values) * self.weight
+        return sum(self.points) * self.weight

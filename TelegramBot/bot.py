@@ -1,58 +1,97 @@
 import logging
-import os
-import platform
-import time
 import requests
+from pathlib import Path
 
-from telegram.ext import Updater
-from telegram.ext import CommandHandler
-from telegram.ext import MessageHandler, Filters
 
-TOKEN = "1903048555:AAFK-d7prKvOvwwXo0IPzeRwJ1ZcuOT5ty8"  # os.environ["TOKEN"]
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram.ext import (
+    Updater,
+    CommandHandler,
+    MessageHandler,
+    Filters,
+    ConversationHandler,
+    CallbackContext,
+)
+
+from messages import Messages
+
+TOKEN = Path(".secrets/bot_token.txt").read_text()
+MESSAGES = Messages()
+HOST = "http://carolyn-spreadsheets:5000"
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
+LOG = logging.getLogger(__name__)
 
+LOG.debug("Token is %s", TOKEN)
 updater = Updater(token=TOKEN, use_context=True)
 dispatcher = updater.dispatcher
 
 # ================================================================ BOT COMMANDS
 
-# Стартовое сообщение (к команде /start)
-def start(update, context):
+
+def start(update: Update, context: CallbackContext):
+    """Стартовое сообщение (к команде /start)"""
+
+    user_id = update.message.from_user.id
 
     p = context.args[0] if len(context.args) > 0 else None
 
     if p is None:
-        context.bot.send_message(
-            chat_id=update.effective_chat.id,
-            text="Нет доступа к боту",
-        )
+        update.message.reply_markdown_v2(text=MESSAGES.auth.NO_AUTH)
         return
 
-    data = requests.get(
-        "http://127.0.0.1:5000/auth",
-        params={"token": p, "tg_id": update.effective_chat.id},
-    ).json()
+    update.message.reply_text(text=MESSAGES.auth.START)
+
+    LOG.info(f"Authenticanting {user_id}")
+
+    try:
+        data = requests.get(
+            f"{HOST}/auth",
+            params={"token": p, "tg_id": user_id},
+        ).json()
+    except requests.exceptions.ConnectionError:
+        update.message.reply_sticker(MESSAGES.stickers.DEAD)
+        return
 
     context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text=f"Привет, {data}",
+        text=MESSAGES.auth.hello(data),
     )
 
 
-# Ответ на не командное сообщение (отвечает тем же сообщением)
-def echo(update, context):
+def grades(update: Update, context: CallbackContext):
+    """Команда: Получить оценки студента."""
+
+    user_id = update.message.from_user.id
+    try:
+        data = requests.get(f"{HOST}/grades", params={"tg_id": user_id}).json()
+        score = data["score"]
+        grade = data["grade"]
+        n_of_assignments = len(data["assignments"])
+
+        score_message = MESSAGES.score.get(grade, score, n_of_assignments)
+        update.message.reply_html(score_message)
+        update.message.reply_sticker(MESSAGES.stickers.bad())
+    except:
+        LOG.exception("Failed to get grades.")
+        update.message.reply_sticker(MESSAGES.stickers.DEAD)
+
+
+def echo(update: Update, context: CallbackContext):
+    """Ответ на не командное сообщение (отвечает тем же сообщением)"""
     context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
 
 
 # ==================================================================== HANDLERS
 
 start_handler = CommandHandler("start", start)
+grades_handler = CommandHandler("grades", grades)
+
 echo_handler = MessageHandler(Filters.text & (~Filters.command), echo)
 
 dispatcher.add_handler(start_handler)
+dispatcher.add_handler(grades_handler)
 dispatcher.add_handler(echo_handler)
 
 # Начало работы бота

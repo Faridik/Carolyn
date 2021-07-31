@@ -1,19 +1,17 @@
 version: "3.9"
 
-services: 
-    spreadsheets:
-        container_name: "carolyn-spreadsheets"
-        build: ./SpreadsheetsService
-        ports: 
-            - "5000:5000"
-        environment: 
-            SECRETKEY: "HELLO-WORLD-@21XX 15AF"
-        volumes: 
-            - ./SpreadsheetsService:/app
-    telegrambot:
-        container_name: "carolyn-telegrambot"
-        build: ./TelegramBot
-        environment: 
-            TOKEN: "1903048555:AAFK-d7prKvOvwwXo0IPzeRwJ1ZcuOT5ty8"
-        volumes: 
-            - ./TelegramBot:/app
+services:
+  spreadsheets:
+    container_name: "carolyn-spreadsheets"
+    build: ./SpreadsheetsService
+    ports:
+      - "5000:5000"
+    environment:
+      SECRETKEY: "HELLO-WORLD-@21XX 15AF"
+    volumes:
+      - ./SpreadsheetsService:/app
+  telegrambot:
+    container_name: "carolyn-telegrambot"
+    build: ./TelegramBot
+    volumes:
+      - ./TelegramBot:/app

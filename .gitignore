@@ -5,3 +5,6 @@ SpreadsheetsService/tests/__pycache__
 SpreadsheetsService/manager/__pycache__
 SpreadsheetsService/manager/client_secret.json
 SpreadsheetsService/manager/token.json
+TelegramBot/.secrets
+SpreadsheetsService/.secrets
+TelegramBot/messages/__pycache__
