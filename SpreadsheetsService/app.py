@@ -5,7 +5,10 @@ import logging
 import models
 import time
 
+logging.basicConfig()
 LOG = logging.getLogger(__name__)
+LOG.setLevel(logging.DEBUG)
+
 app = flask.Flask(__name__)
 app.db = None
 try:
@@ -26,7 +29,8 @@ def availability(func):
     def wrapper(*args, **kwargs):
         if app.db is None:
             return flask.jsonify(dict(error=True, message=app.db_error)), 500
-        func(*args, **kwargs)
+        result = func(*args, **kwargs)
+        return result
 
     return wrapper
 
@@ -42,7 +46,6 @@ def auth():
     token = flask.request.args.get("token")
     tg_id = flask.request.args.get("tg_id")
     student = app.db.get_student_by_name("Дзюба")
-    student = Student(1, "Фарид Михайлов", 5374)
     return flask.jsonify(student)
 
 

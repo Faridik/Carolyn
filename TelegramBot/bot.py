@@ -55,7 +55,7 @@ def start(update: Update, context: CallbackContext):
         update.message.reply_sticker(MESSAGES.stickers.DEAD)
         return
 
-    context.bot.send_message(
+    update.message.reply_text(
         text=MESSAGES.auth.hello(data),
     )
 
