@@ -12,8 +12,8 @@ class Group:
     Используется для работы с множеством студентов.
     """
 
-    def __init__(self, group_id: int):
-        self.group_id: int = group_id
+    def __init__(self, group_id: str):
+        self.group_id: str = group_id
         self._students: Student = []
 
     def __iter__(self):

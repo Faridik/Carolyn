@@ -9,7 +9,7 @@ class Messages:
             self.NO_ACCESS = "⛔ Нет доступа"
 
         def hello(self, data):
-            return f"Привет, {data} 👋"
+            return f"Привет, {data['name']} 👋"
 
     class Score:
         def get(self, grade, score, n_of_assignments):

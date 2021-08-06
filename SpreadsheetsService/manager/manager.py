@@ -14,7 +14,8 @@ from models.assignment import Assignment
 STUDENT_NUMBERS = 0
 STUDENT_NAMES = 1
 GROUP_IDS = 2  # for StudentList and AssignmentList
-TELEGRAM_IDS = 3
+TELEGRAM_IDS = 4
+AUTH_TOKEN = 5
 ASSIGNMENT_NAMES = 1
 ASSIGNMENT_SUBJECT = 3
 ASSIGNMENT_WEIGHTS = 4
@@ -30,7 +31,11 @@ class Manager:
     def __init__(
         self,
         spreadsheet_id: str = "1GKfmLwDVGjcpXFQAUyxM4RMQ5Nx6HAZ5VWenz2z--d0",
-        scopes: list = ["https://www.googleapis.com/auth/spreadsheets.readonly"],
+        scopes: list = ['https://www.googleapis.com/auth/spreadsheets.readonly', 
+                        'https://www.googleapis.com/auth/spreadsheets',
+                        'https://www.googleapis.com/auth/drive.file',
+                        'https://www.googleapis.com/auth/drive.readonly',
+                        'https://www.googleapis.com/auth/drive'],
     ):
 
         self.spreadsheet_id = spreadsheet_id
@@ -69,14 +74,23 @@ class Manager:
 
         return result.get("values", [])
 
-    def get_group(self, group_id: int) -> Group:
+    def write_values(self, values: list, range_name: str):
+        """Записать значения в таблицу."""
+
+        body = {'values' : values}
+        result = self.sheet.values().update(
+        spreadsheetId=self.spreadsheet_id, range=range_name,
+        valueInputOption='USER_ENTERED', body=body).execute()
+
+
+    def get_group(self, group_id: str) -> Group:
         """Получить группу со студентами."""
 
         values = self.get_values()
 
         group = Group(group_id)
 
-        f = lambda row: group_id == int(row[GROUP_IDS])
+        f = lambda row: group_id == row[GROUP_IDS]
         for row in filter(f, values):
             group.add_student(
                 Student(
@@ -92,7 +106,7 @@ class Manager:
     def get_student_by_name(self, name: str) -> Student:
         """Получить студента по имени."""
 
-        values = self.get_values()
+        values = self.get_values("StudentList")
 
         f = lambda row: name in row[STUDENT_NAMES]
         try:
@@ -106,7 +120,7 @@ class Manager:
     def get_student_by_tg_id(self, tg_id: int) -> Student:
         """Получить студента по telegram id."""
 
-        values = self.get_values()
+        values = self.get_values("StudentList")
 
         f = lambda row: tg_id == row[TELEGRAM_IDS]
         try:
@@ -122,10 +136,29 @@ class Manager:
 
         values = self.get_values("AssignmentList")
 
-        f = lambda row: student.group_id == int(row[GROUP_IDS])  # TODO add subject
+        f = lambda row: student.group_id == row[GROUP_IDS]  # TODO add subject
         for row in filter(f, values):
             assignment_value = self.get_values(row[ASSIGNMENT_RANGES])
-            ass_values = list(map(float, assignment_value[student.number]))
+            toFloat = lambda x: float(x.replace(',','.'))
+            ass_values = list(map(toFloat, assignment_value[student.number]))
             student.add_assignment(
-                Assignment(row[ASSIGNMENT_NAMES], ass_values, row[ASSIGNMENT_WEIGHTS])
+                Assignment(row[ASSIGNMENT_NAMES], ass_values, 
+                    toFloat(row[ASSIGNMENT_WEIGHTS]))
             )
+
+
+    def auth_by_token(self, token: str, tg_id: str) -> Student:
+        """Аутентификация пользователя через token."""
+
+        values = self.get_values("StudentList")
+
+        f = lambda row: token == row[AUTH_TOKEN]
+        try:
+            row = next(filter(f, values))
+            row[TELEGRAM_IDS] = tg_id
+            self.write_values(values, "StudentList")
+            return Student(
+                int(row[STUDENT_NUMBERS]), row[STUDENT_NAMES], row[GROUP_IDS], tg_id
+            )
+        except StopIteration:
+            raise StudentNotFound("Не могу найти студента по token")
