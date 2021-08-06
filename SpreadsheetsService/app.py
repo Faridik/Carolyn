@@ -45,8 +45,13 @@ def hello_world():
 def auth():
     token = flask.request.args.get("token")
     tg_id = flask.request.args.get("tg_id")
-    student = app.db.get_student_by_name("Дзюба")
-    return flask.jsonify(student)
+    try:
+        student = app.db.auth_by_token(token, tg_id)
+        return flask.jsonify(student)
+    except StudentNotFound:         #Что тут лучше сделать?
+        return flask.jsonify(
+            dict(error='StudentNotFound')
+        )
 
 
 @app.route("/grades")
@@ -54,10 +59,14 @@ def auth():
 def grades():
     """Возвращает оценки по id пользователя из телеграма."""
     tg_id = flask.request.args.get("tg_id")
-    student = models.Student(1, "Фарид Михайлов", 5374)
-    student.add_assignment(models.Assignment("ИДЗ 1", [1, 1, 0, 0, 1]))
-    student.add_assignment(models.Assignment("КР 1", [0.4, 0.8, 1, 0.5, 1], 5))
-    student.add_assignment(models.Assignment("ИДЗ 2", [1, 1, 1, 0, 1]))
+
+    try:
+        student = app.db.get_student_by_tg_id(tg_id)
+        app.db.set_assignments_for_student(student)
+    except StudentNotFound:         #Что тут лучше сделать?
+        return flask.jsonify(
+            dict(error='StudentNotFound')
+        )
 
     return flask.jsonify(
         dict(
