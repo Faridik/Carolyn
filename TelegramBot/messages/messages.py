@@ -11,6 +11,22 @@ class Messages:
         def hello(self, data):
             return f"Привет, {data['name']} 👋"
 
+        def failure(self, data):
+            if data['desc'] == 'StudentNotFound':
+                return "⛔ Ссылка больше не работает"
+            elif data['desc'] == 'StudentAlreadyAuthed':
+                return "⛔ Регистрация по этой ссылке уже прошла"
+            elif data['desc'] == 'AnotherStudentAlreadyAuthed':
+                return "😨 Кто-то другой уже зерегистрировался по этой ссылке"
+            else:
+                return "😟 Возникли неполадки"
+
+        def success_log(self, data):
+            return f"✅ AUTH: {data['name']} "
+
+        def failure_log(self, data):
+            return f"🟥 AUTH: {data['desc']}"
+
     class Score:
         def get(self, grade, score, n_of_assignments):
             summary = (

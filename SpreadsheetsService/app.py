@@ -5,6 +5,23 @@ import logging
 import models
 import time
 
+UNEXPECTED_ERROR_DICT = dict(
+                error=True,
+                desc='UnexpectedError'
+            )
+STUDENT_NOT_FOUND_DICT = dict(
+                error=True,
+                desc='StudentNotFound'
+            )
+STUDENT_ALREADY_AUTHED_DICT = dict(
+                error = True,
+                desc='StudentAlreadyAuthed'
+            )
+ANOTHER_STUDENT_ALREADY_AUTHED_DICT = dict(
+                error = True,
+                desc='AnotherStudentAlreadyAuthed'
+            )
+
 logging.basicConfig()
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
@@ -46,12 +63,19 @@ def auth():
     token = flask.request.args.get("token")
     tg_id = flask.request.args.get("tg_id")
     try:
-        student = app.db.auth_by_token(token, tg_id)
-        return flask.jsonify(student)
-    except StudentNotFound:         #Что тут лучше сделать?
-        return flask.jsonify(
-            dict(error='StudentNotFound')
-        )
+        student = app.db.auth_by_token(token, tg_id)           
+        return flask.jsonify(dict(
+            student=student,
+            error=False
+        ))
+    except StudentAlreadyAuthed:
+        return flask.jsonify(STUDENT_ALREADY_AUTHED_DICT)
+    except AnotherStudentAlreadyAuthed:
+        return flask.jsonify(ANOTHER_STUDENT_ALREADY_AUTHED_DICT)
+    except StudentNotFound: 
+        return flask.jsonify(STUDENT_NOT_FOUND_DICT)
+    except:
+        return flask.jsonify(UNEXPECTED_ERROR_DICT)
 
 
 @app.route("/grades")
@@ -63,18 +87,20 @@ def grades():
     try:
         student = app.db.get_student_by_tg_id(tg_id)
         app.db.set_assignments_for_student(student)
-    except StudentNotFound:         #Что тут лучше сделать?
         return flask.jsonify(
-            dict(error='StudentNotFound')
-        )
-
-    return flask.jsonify(
         dict(
+            error=False,
             score=student.score,
             grade=student.grade,
             assignments=student.assignments,
         )
     )
+    except StudentNotFound:
+        return flask.jsonify(STUDENT_NOT_FOUND_DICT)
+    except:
+        return flask.jsonify(UNEXPECTED_ERROR_DICT)
+
+    
 
 
 if __name__ == "__main__":

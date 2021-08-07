@@ -8,8 +8,8 @@ from google.oauth2.credentials import Credentials
 
 from models.student import Student
 from models.group import Group
-from models.group import StudentNotFound
 from models.assignment import Assignment
+from models.group import StudentNotFound
 
 STUDENT_NUMBERS = 0
 STUDENT_NAMES = 1
@@ -23,6 +23,16 @@ ASSIGNMENT_RANGES = 5
 ASSIGNMENT_ALLOWS = 6
 TOKEN_FILE = pathlib.Path() / ".secrets" / "token.json"
 CLIENT_SECRET_FILE = pathlib.Path() / ".secrets" / "client_secret.json"
+
+class StudentAlreadyAuthed(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
+
+class AnotherStudentAlreadyAuthed(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
 
 
 class Manager:
@@ -155,6 +165,11 @@ class Manager:
         f = lambda row: token == row[AUTH_TOKEN]
         try:
             row = next(filter(f, values))
+            if row[TELEGRAM_IDS] == tg_id:
+                raise StudentAlreadyAuthed('Студент уже зарегистрировался')
+            elif row[TELEGRAM_IDS]:
+                raise AnotherStudentAlreadyAuthed(
+                    'Другой студент зарегистрировался по token')
             row[TELEGRAM_IDS] = tg_id
             self.write_values(values, "StudentList")
             return Student(

@@ -18,6 +18,7 @@ from messages import Messages
 TOKEN = Path(".secrets/bot_token.txt").read_text()
 MESSAGES = Messages()
 HOST = "http://carolyn-spreadsheets:5000"
+CHAT_LOG_ID = -507530583
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
@@ -27,6 +28,11 @@ LOG = logging.getLogger(__name__)
 LOG.debug("Token is %s", TOKEN)
 updater = Updater(token=TOKEN, use_context=True)
 dispatcher = updater.dispatcher
+
+
+def log_to_group_chat(update: Update, text: str):
+    update.message.bot.send_message(chat_id=CHAT_LOG_ID, text=text)
+
 
 # ================================================================ BOT COMMANDS
 
@@ -52,11 +58,28 @@ def start(update: Update, context: CallbackContext):
             params={"token": p, "tg_id": user_id},
         ).json()
     except requests.exceptions.ConnectionError:
+        log_to_group_chat(update, 
+            text=MESSAGES.auth.failure_log(
+                {'desc':'ConnectionError'})
+        )
         update.message.reply_sticker(MESSAGES.stickers.DEAD)
         return
 
+    if data['error']:
+        log_to_group_chat(update, 
+            text=MESSAGES.auth.failure_log(data)
+        )
+        update.message.reply_text(
+            text=MESSAGES.auth.failure(data)
+        )
+        update.message.reply_sticker(MESSAGES.stickers.DEAD)
+        return
+
+    log_to_group_chat(update, 
+        text=MESSAGES.auth.success_log(data['student'])
+    )
     update.message.reply_text(
-        text=MESSAGES.auth.hello(data),
+        text=MESSAGES.auth.hello(data['student']),
     )
 
 
