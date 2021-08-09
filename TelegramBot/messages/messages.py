@@ -11,15 +11,13 @@ class Messages:
         def hello(self, data):
             return f"Привет, {data['name']} 👋"
 
-        def failure(self, data):
-            if data['desc'] == 'StudentNotFound':
-                return "⛔ Ссылка больше не работает"
-            elif data['desc'] == 'StudentAlreadyAuthed':
-                return "⛔ Регистрация по этой ссылке уже прошла"
-            elif data['desc'] == 'AnotherStudentAlreadyAuthed':
-                return "😨 Кто-то другой уже зерегистрировался по этой ссылке"
-            else:
-                return "😟 Возникли неполадки"
+        def failure(self, err: str):
+            cases = {
+                "StudentNotFound": "⛔ Ссылка больше не работает",
+                "StudentAlreadyAuthed": "⛔ Регистрация по этой ссылке уже прошла",
+                "AnotherStudentAlreadyAuthed": "😨 Кто-то другой уже зерегистрировался по этой ссылке",
+            }
+            return cases.get(err, "😟 Возникли неполадки")
 
         def success_log(self, data):
             return f"✅ AUTH: {data['name']} "
@@ -28,12 +26,18 @@ class Messages:
             return f"🟥 AUTH: {data['desc']}"
 
     class Score:
+        START = "👀 Посмотрим (~3с) ..."
+
         def get(self, grade, score, n_of_assignments):
             summary = (
                 f"Ранг: <b>{score:.2f}</b> {n_of_assignments} зад.\n"
                 + f"Оценка: <b>{grade:.2f}</b>"
             )
             return summary
+
+        @staticmethod
+        def timeit(t: float):
+            return f"⏱ Посмотрели за {t:.2f}с"
 
     class Spreadsheets:
         def __init__(self):

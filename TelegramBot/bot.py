@@ -1,5 +1,7 @@
 import logging
+from typing import Any, Optional
 import requests
+import time
 from pathlib import Path
 
 
@@ -18,21 +20,82 @@ from messages import Messages
 TOKEN = Path(".secrets/bot_token.txt").read_text()
 MESSAGES = Messages()
 HOST = "http://carolyn-spreadsheets:5000"
+"""ID канала где собираются логи"""
 CHAT_LOG_ID = -507530583
 
+
+class TgLogger(logging.Logger):
+    """Обертка на логгер, чтобы можно было использовать обычные лог-функции,
+    но при этом получать логи в телеграм чат.
+
+    Есть баг, который не позволяет вызывать лог с ленивыми аргументами. Если
+    вызывать
+    ```python
+    LOG.warning("%s", var)
+    ```
+    , то можно получить такую ошибку:
+    ```python
+    TypeError: _log_to_telegram() got multiple values for argument 'msg'
+    ```
+    Поэтому используйте,
+    ```
+    LOG.warning(f"{var}")
+    ```
+    """
+
+    def __init__(self, name, level=logging.NOTSET):
+        self._bot = None
+        self._chat_log_id = CHAT_LOG_ID
+        return super(TgLogger, self).__init__(name, level)
+
+    @property
+    def bot(self):
+        return self._bot
+
+    @bot.setter
+    def bot(self, value):
+        self._bot = value
+
+    def _log_to_telegram(
+        self,
+        msg: str,
+        *args,
+        emoji: str,
+    ):
+        if self._bot is not None:
+            txt = f"{emoji} {msg};"
+            self._bot.send_message(chat_id=CHAT_LOG_ID, text=txt)
+
+    def warning(self, msg: Any, *args: Any, **kwargs: Any) -> None:
+        self._log_to_telegram(msg=msg, emoji="⚠", *args)
+        return super().warning(
+            msg,
+            *args,
+            **kwargs,
+        )
+
+    def error(self, msg: Any, *args: Any, **kwargs: Any) -> None:
+        self._log_to_telegram(msg=msg, emoji="💢", *args)
+        return super().error(
+            msg,
+            *args,
+            **kwargs,
+        )
+
+    def exception(self, msg, *args: Any, **kwargs: Any) -> None:
+        self._log_to_telegram(msg=msg, emoji="💥", *args)
+        return super().exception(msg, *args, **kwargs)
+
+
+updater = Updater(token=TOKEN, use_context=True)
+dispatcher = updater.dispatcher
+
+logging.setLoggerClass(TgLogger)
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 LOG = logging.getLogger(__name__)
-
-LOG.debug("Token is %s", TOKEN)
-updater = Updater(token=TOKEN, use_context=True)
-dispatcher = updater.dispatcher
-
-
-def log_to_group_chat(update: Update, text: str):
-    update.message.bot.send_message(chat_id=CHAT_LOG_ID, text=text)
-
+LOG.bot = updater.bot
 
 # ================================================================ BOT COMMANDS
 
@@ -41,45 +104,38 @@ def start(update: Update, context: CallbackContext):
     """Стартовое сообщение (к команде /start)"""
 
     user_id = update.message.from_user.id
+    username = update.message.from_user.username
+    student_token = context.args[0] if len(context.args) > 0 else None
 
-    p = context.args[0] if len(context.args) > 0 else None
-
-    if p is None:
+    if student_token is None:
         update.message.reply_markdown_v2(text=MESSAGES.auth.NO_AUTH)
         return
 
+    # Длинная операция, сообщим о запущенном процессе.
     update.message.reply_text(text=MESSAGES.auth.START)
 
     LOG.info(f"Authenticanting {user_id}")
 
     try:
-        data = requests.get(
+        req = requests.get(
             f"{HOST}/auth",
-            params={"token": p, "tg_id": user_id},
-        ).json()
-    except requests.exceptions.ConnectionError:
-        log_to_group_chat(update, 
-            text=MESSAGES.auth.failure_log(
-                {'desc':'ConnectionError'})
+            params={"token": student_token, "tg_id": user_id},
         )
+        data = req.json()
+    except requests.exceptions.RequestException:
+        LOG.exception("@{username} вызвал: Ошибка подключения к сервису Spreadsheets.")
         update.message.reply_sticker(MESSAGES.stickers.DEAD)
         return
 
-    if data['error']:
-        log_to_group_chat(update, 
-            text=MESSAGES.auth.failure_log(data)
-        )
-        update.message.reply_text(
-            text=MESSAGES.auth.failure(data)
-        )
+    if req.status_code != 200:
+        LOG.error(f"Ошибка авторизации, у пользователя @{username} {data}")
+        err = data.get("error", "")
+        update.message.reply_text(text=MESSAGES.auth.failure(err))
         update.message.reply_sticker(MESSAGES.stickers.DEAD)
         return
 
-    log_to_group_chat(update, 
-        text=MESSAGES.auth.success_log(data['student'])
-    )
     update.message.reply_text(
-        text=MESSAGES.auth.hello(data['student']),
+        text=MESSAGES.auth.hello(data["student"]),
     )
 
 
@@ -87,6 +143,10 @@ def grades(update: Update, context: CallbackContext):
     """Команда: Получить оценки студента."""
 
     user_id = update.message.from_user.id
+
+    start = time.monotonic()
+    # Длинная операция, сообщим о запущенном процессе.
+    look_msg = update.message.reply_html(MESSAGES.score.START)
     try:
         data = requests.get(f"{HOST}/grades", params={"tg_id": user_id}).json()
         score = data["score"]
@@ -99,6 +159,8 @@ def grades(update: Update, context: CallbackContext):
     except:
         LOG.exception("Failed to get grades.")
         update.message.reply_sticker(MESSAGES.stickers.DEAD)
+    diff = time.monotonic() - start
+    look_msg.edit_text(MESSAGES.score.timeit(diff))
 
 
 def echo(update: Update, context: CallbackContext):

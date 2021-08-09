@@ -1,26 +1,11 @@
 from functools import wraps
+
+from werkzeug.exceptions import *
 from manager import *
 import flask
 import logging
 import models
 import time
-
-UNEXPECTED_ERROR_DICT = dict(
-                error=True,
-                desc='UnexpectedError'
-            )
-STUDENT_NOT_FOUND_DICT = dict(
-                error=True,
-                desc='StudentNotFound'
-            )
-STUDENT_ALREADY_AUTHED_DICT = dict(
-                error = True,
-                desc='StudentAlreadyAuthed'
-            )
-ANOTHER_STUDENT_ALREADY_AUTHED_DICT = dict(
-                error = True,
-                desc='AnotherStudentAlreadyAuthed'
-            )
 
 logging.basicConfig()
 LOG = logging.getLogger(__name__)
@@ -60,22 +45,12 @@ def hello_world():
 @app.route("/auth")
 @availability
 def auth():
-    token = flask.request.args.get("token")
-    tg_id = flask.request.args.get("tg_id")
-    try:
-        student = app.db.auth_by_token(token, tg_id)           
-        return flask.jsonify(dict(
-            student=student,
-            error=False
-        ))
-    except StudentAlreadyAuthed:
-        return flask.jsonify(STUDENT_ALREADY_AUTHED_DICT)
-    except AnotherStudentAlreadyAuthed:
-        return flask.jsonify(ANOTHER_STUDENT_ALREADY_AUTHED_DICT)
-    except StudentNotFound: 
-        return flask.jsonify(STUDENT_NOT_FOUND_DICT)
-    except:
-        return flask.jsonify(UNEXPECTED_ERROR_DICT)
+    token = flask.request.args.get("token", None)
+    tg_id = flask.request.args.get("tg_id", None)
+    if token is None or tg_id is None:
+        raise BadRequest("Не предоставлены token и tg_id!")
+    student = app.db.auth_by_token(token, tg_id)
+    return flask.jsonify(dict(student=student))
 
 
 @app.route("/grades")
@@ -83,24 +58,41 @@ def auth():
 def grades():
     """Возвращает оценки по id пользователя из телеграма."""
     tg_id = flask.request.args.get("tg_id")
-
-    try:
-        student = app.db.get_student_by_tg_id(tg_id)
-        app.db.set_assignments_for_student(student)
-        return flask.jsonify(
+    student = app.db.get_student_by_tg_id(tg_id)
+    app.db.set_assignments_for_student(student)
+    return flask.jsonify(
         dict(
-            error=False,
             score=student.score,
             grade=student.grade,
             assignments=student.assignments,
         )
     )
-    except StudentNotFound:
-        return flask.jsonify(STUDENT_NOT_FOUND_DICT)
-    except:
-        return flask.jsonify(UNEXPECTED_ERROR_DICT)
 
-    
+
+@app.errorhandler(StudentAlreadyAuthed)
+def show_error(err):
+    return flask.jsonify({"error": type(err).__name__, "message": err.message}), 409
+
+
+@app.errorhandler(AnotherStudentAlreadyAuthed)
+def show_error(err):
+    return flask.jsonify({"error": type(err).__name__, "message": err.message}), 403
+
+
+@app.errorhandler(StudentNotFound)
+def show_error(err):
+    return flask.jsonify({"error": type(err).__name__, "message": err.message}), 404
+
+
+@app.errorhandler(BadRequest)
+def show_error(err):
+    return flask.jsonify({"error": type(err).__name__, "message": err.description}), 400
+
+
+# Любая другая ошибка вылетит вот здесь
+@app.errorhandler(Exception)
+def show_error(err):
+    return flask.jsonify({"error": type(err).__name__, "message": str(err)}), 500
 
 
 if __name__ == "__main__":
