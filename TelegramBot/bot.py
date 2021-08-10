@@ -108,11 +108,11 @@ def start(update: Update, context: CallbackContext):
     student_token = context.args[0] if len(context.args) > 0 else None
 
     if student_token is None:
-        update.message.reply_markdown_v2(text=MESSAGES.auth.NO_AUTH)
+        update.message.reply_markdown_v2(text=MESSAGES.Auth.NO_AUTH)
         return
 
     # Длинная операция, сообщим о запущенном процессе.
-    update.message.reply_text(text=MESSAGES.auth.START)
+    update.message.reply_text(text=MESSAGES.Auth.START)
 
     LOG.info(f"Authenticanting {user_id}")
 
@@ -124,18 +124,18 @@ def start(update: Update, context: CallbackContext):
         data = req.json()
     except requests.exceptions.RequestException:
         LOG.exception("@{username} вызвал: Ошибка подключения к сервису Spreadsheets.")
-        update.message.reply_sticker(MESSAGES.stickers.DEAD)
+        update.message.reply_sticker(MESSAGES.Stickers.DEAD)
         return
 
     if req.status_code != 200:
         LOG.error(f"Ошибка авторизации, у пользователя @{username} {data}")
         err = data.get("error", "")
-        update.message.reply_text(text=MESSAGES.auth.failure(err))
-        update.message.reply_sticker(MESSAGES.stickers.DEAD)
+        update.message.reply_text(text=MESSAGES.Auth.failure(err))
+        update.message.reply_sticker(MESSAGES.Stickers.DEAD)
         return
 
     update.message.reply_text(
-        text=MESSAGES.auth.hello(data["student"]),
+        text=MESSAGES.Auth.hello(data["student"]),
     )
 
 
@@ -146,21 +146,21 @@ def grades(update: Update, context: CallbackContext):
 
     start = time.monotonic()
     # Длинная операция, сообщим о запущенном процессе.
-    look_msg = update.message.reply_html(MESSAGES.score.START)
+    look_msg = update.message.reply_html(MESSAGES.Score.START)
     try:
         data = requests.get(f"{HOST}/grades", params={"tg_id": user_id}).json()
         score = data["score"]
         grade = data["grade"]
         n_of_assignments = len(data["assignments"])
 
-        score_message = MESSAGES.score.get(grade, score, n_of_assignments)
+        score_message = MESSAGES.Score.get(grade, score, n_of_assignments)
         update.message.reply_html(score_message)
-        update.message.reply_sticker(MESSAGES.stickers.bad())
+        update.message.reply_sticker(MESSAGES.Stickers.bad())
     except:
         LOG.exception("Failed to get grades.")
-        update.message.reply_sticker(MESSAGES.stickers.DEAD)
+        update.message.reply_sticker(MESSAGES.Stickers.DEAD)
     diff = time.monotonic() - start
-    look_msg.edit_text(MESSAGES.score.timeit(diff))
+    look_msg.edit_text(MESSAGES.Score.timeit(diff))
 
 
 def echo(update: Update, context: CallbackContext):
