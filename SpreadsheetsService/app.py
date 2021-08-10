@@ -10,6 +10,7 @@ import time
 logging.basicConfig()
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
+SUPER_USER = (420, 228)
 
 app = flask.Flask(__name__)
 app.db = None
@@ -30,8 +31,21 @@ def availability(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
         if app.db is None:
-            return flask.jsonify(dict(error=True, message=app.db_error)), 500
+            raise Exception("cannot init manager")
         result = func(*args, **kwargs)
+        return result
+
+    return wrapper
+
+
+def superuser(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        tg_id = flask.request.args.get("tg_id", -1)
+        student: Student = app.db.get_student_by_tg_id(tg_id)
+        if student.number not in SUPER_USER:
+            raise Forbidden(f"Доступ запрещен для студента {student.name}")
+        result = func(student, *args, **kwargs)
         return result
 
     return wrapper
@@ -67,6 +81,14 @@ def grades():
             assignments=student.assignments,
         )
     )
+
+
+@app.route("/broadcast")
+@availability
+@superuser
+def broadcast(student):
+    """Выполняет рассылку студентам."""
+    return flask.jsonify(student)
 
 
 @app.errorhandler(StudentAlreadyAuthed)

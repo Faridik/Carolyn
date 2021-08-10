@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+import telegram
 from telegram.ext import (
     Updater,
     CommandHandler,
@@ -163,6 +164,29 @@ def grades(update: Update, context: CallbackContext):
     look_msg.edit_text(MESSAGES.Score.timeit(diff))
 
 
+def broadcast(update: Update, context: CallbackContext):
+    """Команда: разослать студентам."""
+    access_message = update.message.reply_text("🔐 Проверка доступа...")
+    user_id = update.message.from_user.id
+    try:
+        r = requests.get(f"{HOST}/broadcast", params={"tg_id": user_id})
+        assert r.status_code == 200, "Доступ запрещен к /broadcast"
+        data = r.json()
+        access_message.edit_text(f"👨‍💻 {data['name']}")
+
+        kb = telegram.ReplyKeyboardMarkup(
+            [
+                [telegram.KeyboardButton("5374"), telegram.KeyboardButton("5371")],
+                [telegram.KeyboardButton("1337")],
+            ],
+            one_time_keyboard=True,
+        )
+        update.message.reply_text("Выбери группу", reply_markup=kb)
+    except:
+        access_message.edit_text("🤚 Команда не может быть выполнена")
+        LOG.exception("Не удалось отправить сообщение в бродкаст.")
+
+
 def echo(update: Update, context: CallbackContext):
     """Ответ на не командное сообщение (отвечает тем же сообщением)"""
     context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
@@ -172,12 +196,14 @@ def echo(update: Update, context: CallbackContext):
 
 start_handler = CommandHandler("start", start)
 grades_handler = CommandHandler("grades", grades)
+broadcast_handler = CommandHandler("broadcast", broadcast)
 
 echo_handler = MessageHandler(Filters.text & (~Filters.command), echo)
 
 dispatcher.add_handler(start_handler)
 dispatcher.add_handler(grades_handler)
 dispatcher.add_handler(echo_handler)
+dispatcher.add_handler(broadcast_handler)
 
 # Начало работы бота
 updater.start_polling()
