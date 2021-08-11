@@ -21,8 +21,8 @@ from messages import Messages
 TOKEN = Path(".secrets/bot_token.txt").read_text()
 MESSAGES = Messages()
 HOST = "http://carolyn-spreadsheets:5000"
-"""ID канала где собираются логи"""
-CHAT_LOG_ID = -507530583
+CHAT_LOG_ID = -507530583  # ID канала где собираются логи
+BROADCAST_MESSAGE, BROADCAST_PUBLISH_DONE = range(2)
 
 
 class TgLogger(logging.Logger):
@@ -88,15 +88,11 @@ class TgLogger(logging.Logger):
         return super().exception(msg, *args, **kwargs)
 
 
-updater = Updater(token=TOKEN, use_context=True)
-dispatcher = updater.dispatcher
-
 logging.setLoggerClass(TgLogger)
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
 LOG = logging.getLogger(__name__)
-LOG.bot = updater.bot
 
 # ================================================================ BOT COMMANDS
 
@@ -174,36 +170,68 @@ def broadcast(update: Update, context: CallbackContext):
         data = r.json()
         access_message.edit_text(f"👨‍💻 {data['name']}")
 
-        kb = telegram.ReplyKeyboardMarkup(
+        reply_keyboard = telegram.ReplyKeyboardMarkup(
             [
                 [telegram.KeyboardButton("5374"), telegram.KeyboardButton("5371")],
                 [telegram.KeyboardButton("1337")],
             ],
             one_time_keyboard=True,
         )
-        update.message.reply_text("Выбери группу", reply_markup=kb)
+        update.message.reply_text("Выбери группу", reply_markup=reply_keyboard)
+        return BROADCAST_MESSAGE
     except:
         access_message.edit_text("🤚 Команда не может быть выполнена")
         LOG.exception("Не удалось отправить сообщение в бродкаст.")
+        return ConversationHandler.END
 
 
-def echo(update: Update, context: CallbackContext):
-    """Ответ на не командное сообщение (отвечает тем же сообщением)"""
-    context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
+def publish_message(update: Update, context: CallbackContext):
+    """Чел выбирает группу и для нее готовится сообщение."""
+    update.message.reply_html(
+        "🖋 Сообщение для группы:", reply_markup=telegram.ReplyKeyboardRemove()
+    )
+    return BROADCAST_PUBLISH_DONE
+
+
+def publish_done(update: Update, context: CallbackContext):
+    """Рассылка выполняется здесь."""
+    update.message.reply_html("📨 Сообщения разосланы")
+    return ConversationHandler.END
+
+
+def cancel(update: Update, context: CallbackContext):
+    """Cancels and ends the conversation."""
+    update.message.reply_text("Отмена операции", reply_markup=ReplyKeyboardRemove())
+    return ConversationHandler.END
 
 
 # ==================================================================== HANDLERS
 
-start_handler = CommandHandler("start", start)
-grades_handler = CommandHandler("grades", grades)
-broadcast_handler = CommandHandler("broadcast", broadcast)
 
-echo_handler = MessageHandler(Filters.text & (~Filters.command), echo)
+def main() -> None:
+    updater = Updater(token=TOKEN, use_context=True)
+    dispatcher = updater.dispatcher
+    LOG.bot = updater.bot
 
-dispatcher.add_handler(start_handler)
-dispatcher.add_handler(grades_handler)
-dispatcher.add_handler(echo_handler)
-dispatcher.add_handler(broadcast_handler)
+    start_handler = CommandHandler("start", start)
+    grades_handler = CommandHandler("grades", grades)
 
-# Начало работы бота
-updater.start_polling()
+    broadcast_handler = ConversationHandler(
+        entry_points=[CommandHandler("broadcast", broadcast)],
+        states={
+            BROADCAST_MESSAGE: [MessageHandler(Filters.text, publish_message)],
+            BROADCAST_PUBLISH_DONE: [MessageHandler(Filters.text, publish_done)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+
+    dispatcher.add_handler(start_handler)
+    dispatcher.add_handler(grades_handler)
+    dispatcher.add_handler(broadcast_handler)
+
+    # Начало работы бота
+    updater.start_polling()
+
+
+if __name__ == "__main__":
+    main()
