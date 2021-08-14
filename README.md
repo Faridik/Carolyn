@@ -1,4 +1,8 @@
 # Carolyn
+
+![GitHub last commit](https://img.shields.io/github/last-commit/faridik/carolyn)
+![GitHub repo size](https://img.shields.io/github/repo-size/faridik/carolyn)
+
 Кэрлин персонаж из моего любимого сериала «Конь БоДжек». Она была секретаршей агента БоДжека. Этот проект по созданию секретаря, который позволил бы мне упростить и автоматизировать учебный процесс.
 
 ![img.png](https://cdn.discordapp.com/attachments/656494719957729280/867117788618817536/farid-carolyn.png)
