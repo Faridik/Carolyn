@@ -168,13 +168,21 @@ def broadcast(update: Update, context: CallbackContext):
         r = requests.get(f"{HOST}/broadcast", params={"tg_id": user_id})
         assert r.status_code == 200, "Доступ запрещен к /broadcast"
         data = r.json()
-        access_message.edit_text(f"👨‍💻 {data['name']}")
+        context.bot_data["groups"] = data
+        access_message.edit_text(f"✅ Доступ получен")
 
+        groups_list = [k for k in data.keys()]
+        n = 5  # кол-во кнопок в строке
+        summary_keyboard = []
+        LOG.info(groups_list)
+        for i in range((len(groups_list) // n) + 1):
+            LOG.debug(groups_list[i * n : i * n + n])
+            keyboard_row = groups_list[i * n : i * n + n]
+            summary_keyboard.append(keyboard_row)
+
+        LOG.info(f"{summary_keyboard}")
         reply_keyboard = telegram.ReplyKeyboardMarkup(
-            [
-                [telegram.KeyboardButton("5374"), telegram.KeyboardButton("5371")],
-                [telegram.KeyboardButton("1337")],
-            ],
+            summary_keyboard,
             one_time_keyboard=True,
         )
         update.message.reply_text("Выбери группу", reply_markup=reply_keyboard)
@@ -187,15 +195,26 @@ def broadcast(update: Update, context: CallbackContext):
 
 def publish_message(update: Update, context: CallbackContext):
     """Чел выбирает группу и для нее готовится сообщение."""
+    message = update.message.text
+    context.user_data["broadcast_to"] = message
     update.message.reply_html(
-        "🖋 Сообщение для группы:", reply_markup=telegram.ReplyKeyboardRemove()
+        f"🖋 Сообщение для группы {message}:",
+        reply_markup=telegram.ReplyKeyboardRemove(),
     )
     return BROADCAST_PUBLISH_DONE
 
 
 def publish_done(update: Update, context: CallbackContext):
     """Рассылка выполняется здесь."""
-    update.message.reply_html("📨 Сообщения разосланы")
+    # TODO: код работает с диктом, а не с классом. Переделать.
+    message = update.message.text
+    group = context.user_data["broadcast_to"]
+    LOG.info(f"send {group} a message {message}")
+
+    for student in context.bot_data["groups"][group]:
+        LOG.info(f"{student} send message: {message}")
+        if student.tg_id:
+            context.bot.send_message(chat_id=student.tg_id, text=message)
     return ConversationHandler.END
 
 

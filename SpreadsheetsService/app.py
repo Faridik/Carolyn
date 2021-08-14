@@ -88,7 +88,7 @@ def grades():
 @superuser
 def broadcast(student):
     """Выполняет рассылку студентам."""
-    return flask.jsonify(student)
+    return flask.jsonify(app.db.get_all_groups())
 
 
 @app.errorhandler(StudentAlreadyAuthed)

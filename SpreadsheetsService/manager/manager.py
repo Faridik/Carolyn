@@ -1,3 +1,4 @@
+from collections import defaultdict
 import os.path
 import pathlib
 from sys import path
@@ -24,10 +25,12 @@ ASSIGNMENT_ALLOWS = 6
 TOKEN_FILE = pathlib.Path() / ".secrets" / "token.json"
 CLIENT_SECRET_FILE = pathlib.Path() / ".secrets" / "client_secret.json"
 
+
 class StudentAlreadyAuthed(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
+
 
 class AnotherStudentAlreadyAuthed(Exception):
     def __init__(self, message):
@@ -41,11 +44,13 @@ class Manager:
     def __init__(
         self,
         spreadsheet_id: str = "1GKfmLwDVGjcpXFQAUyxM4RMQ5Nx6HAZ5VWenz2z--d0",
-        scopes: list = ['https://www.googleapis.com/auth/spreadsheets.readonly', 
-                        'https://www.googleapis.com/auth/spreadsheets',
-                        'https://www.googleapis.com/auth/drive.file',
-                        'https://www.googleapis.com/auth/drive.readonly',
-                        'https://www.googleapis.com/auth/drive'],
+        scopes: list = [
+            "https://www.googleapis.com/auth/spreadsheets.readonly",
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive.file",
+            "https://www.googleapis.com/auth/drive.readonly",
+            "https://www.googleapis.com/auth/drive",
+        ],
     ):
 
         self.spreadsheet_id = spreadsheet_id
@@ -74,7 +79,11 @@ class Manager:
     def get_values(
         self, range_name: str = "StudentList"
     ) -> list:  # TODO: change subject
-        """Получить значения с таблицы."""
+        """Получить значения с таблицы.
+
+        Returns:
+            list of rows [[val1, val2, ...], [], ...]
+        """
 
         result = (
             self.sheet.values()
@@ -87,11 +96,17 @@ class Manager:
     def write_values(self, values: list, range_name: str):
         """Записать значения в таблицу."""
 
-        body = {'values' : values}
-        result = self.sheet.values().update(
-        spreadsheetId=self.spreadsheet_id, range=range_name,
-        valueInputOption='USER_ENTERED', body=body).execute()
-
+        body = {"values": values}
+        result = (
+            self.sheet.values()
+            .update(
+                spreadsheetId=self.spreadsheet_id,
+                range=range_name,
+                valueInputOption="USER_ENTERED",
+                body=body,
+            )
+            .execute()
+        )
 
     def get_group(self, group_id: str) -> Group:
         """Получить группу со студентами."""
@@ -112,6 +127,23 @@ class Manager:
             )
 
         return group
+
+    def get_all_groups(self) -> list:
+        """Получить список всех групп."""
+        values = self.get_values()
+        groups = defaultdict(lambda: Group("0"))
+        for row in values:
+            groups[row[GROUP_IDS]].group_id = row[GROUP_IDS]
+            groups[row[GROUP_IDS]].add_student(
+                Student(
+                    int(row[STUDENT_NUMBERS]),
+                    row[STUDENT_NAMES],
+                    row[GROUP_IDS],
+                    row[TELEGRAM_IDS],
+                )
+            )
+
+        return groups
 
     def get_student_by_name(self, name: str) -> Student:
         """Получить студента по имени."""
@@ -149,13 +181,13 @@ class Manager:
         f = lambda row: student.group_id == row[GROUP_IDS]  # TODO add subject
         for row in filter(f, values):
             assignment_value = self.get_values(row[ASSIGNMENT_RANGES])
-            toFloat = lambda x: float(x.replace(',','.'))
+            toFloat = lambda x: float(x.replace(",", "."))
             ass_values = list(map(toFloat, assignment_value[student.number]))
             student.add_assignment(
-                Assignment(row[ASSIGNMENT_NAMES], ass_values, 
-                    toFloat(row[ASSIGNMENT_WEIGHTS]))
+                Assignment(
+                    row[ASSIGNMENT_NAMES], ass_values, toFloat(row[ASSIGNMENT_WEIGHTS])
+                )
             )
-
 
     def auth_by_token(self, token: str, tg_id: str) -> Student:
         """Аутентификация пользователя через token."""
@@ -166,10 +198,11 @@ class Manager:
         try:
             row = next(filter(f, values))
             if row[TELEGRAM_IDS] == tg_id:
-                raise StudentAlreadyAuthed('Студент уже зарегистрировался')
+                raise StudentAlreadyAuthed("Студент уже зарегистрировался")
             elif row[TELEGRAM_IDS]:
                 raise AnotherStudentAlreadyAuthed(
-                    'Другой студент зарегистрировался по token')
+                    "Другой студент зарегистрировался по token"
+                )
             row[TELEGRAM_IDS] = tg_id
             self.write_values(values, "StudentList")
             return Student(

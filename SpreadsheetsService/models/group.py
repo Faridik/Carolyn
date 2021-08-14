@@ -7,14 +7,20 @@ class StudentNotFound(Exception):
         super().__init__(self.message)
 
 
-class Group:
+class Group(dict):
     """Объект "Группа" для работы со списком студентов.
     Используется для работы с множеством студентов.
     """
 
     def __init__(self, group_id: str):
-        self.group_id: str = group_id
+        self._group_id: str = group_id
         self._students: Student = []
+
+        dict.__init__(
+            self,
+            group_id=self.group_id,
+            students=self._students,
+        )
 
     def __iter__(self):
         """Делегирует итератор на список студентов.
@@ -25,6 +31,15 @@ class Group:
         ```
         """
         return iter(self._students)
+
+    @property
+    def group_id(self):
+        return self._group_id
+
+    @group_id.setter
+    def group_id(self, value):
+        self["group_id"] = value
+        self._group_id = value
 
     def add_student(self, student: Student):
         """Добавить студента в группу."""
