@@ -206,15 +206,18 @@ def publish_message(update: Update, context: CallbackContext):
 
 def publish_done(update: Update, context: CallbackContext):
     """Рассылка выполняется здесь."""
-    # TODO: код работает с диктом, а не с классом. Переделать.
-    message = update.message.text
+    message = f"📣 {update.message.text}\n<i>— {update.message.from_user.name}</i>"
     group = context.user_data["broadcast_to"]
-    LOG.info(f"send {group} a message {message}")
-
-    for student in context.bot_data["groups"][group]:
-        LOG.info(f"{student} send message: {message}")
-        if student.tg_id:
-            context.bot.send_message(chat_id=student.tg_id, text=message)
+    send_status = update.message.reply_text("0%")
+    students = context.bot_data["groups"][group]["students"]
+    for i, student in enumerate(students):
+        progress = i / len(students) * 100
+        if student["tg_id"]:
+            context.bot.send_message(
+                chat_id=student["tg_id"], text=message, parse_mode="HTML"
+            )
+        send_status.edit_text(f"{progress:.1f}% 🏃‍♂️ Рассылка")
+    send_status.edit_text("100% 👍 Все сообщения разосланы")
     return ConversationHandler.END
 
 
