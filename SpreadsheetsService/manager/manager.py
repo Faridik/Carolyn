@@ -2,6 +2,8 @@ from collections import defaultdict
 import os.path
 import pathlib
 from sys import path
+from functools import lru_cache, wraps
+from datetime import datetime, timedelta
 from googleapiclient.discovery import _MEDIA_SIZE_BIT_SHIFTS, build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
@@ -24,6 +26,25 @@ ASSIGNMENT_RANGES = 5
 ASSIGNMENT_ALLOWS = 6
 TOKEN_FILE = pathlib.Path() / ".secrets" / "token.json"
 CLIENT_SECRET_FILE = pathlib.Path() / ".secrets" / "client_secret.json"
+
+
+def timed_lru_cache(seconds: int, maxsize: int = 128):
+    def wrapper_cache(func):
+        func = lru_cache(maxsize=maxsize)(func)
+        func.lifetime = timedelta(seconds=seconds)
+        func.expiration = datetime.utcnow() + func.lifetime
+
+        @wraps(func)
+        def wrapped_func(*args, **kwargs):
+            if datetime.utcnow() >= func.expiration:
+                func.cache_clear()
+                func.expiration = datetime.utcnow() + func.lifetime
+
+            return func(*args, **kwargs)
+
+        return wrapped_func
+
+    return wrapper_cache
 
 
 class StudentAlreadyAuthed(Exception):
@@ -76,6 +97,7 @@ class Manager:
         service = build("sheets", "v4", credentials=creds)
         self.sheet = service.spreadsheets()
 
+    @timed_lru_cache(seconds=150)
     def get_values(
         self, range_name: str = "StudentList"
     ) -> list:  # TODO: change subject
