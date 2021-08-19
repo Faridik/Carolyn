@@ -4,11 +4,12 @@ from .assignment import Assignment
 class Student(dict):
     """Позволяет выполнять операции над студентами."""
 
-    def __init__(self, number: int, name: str, group_id: str, tg_id: int = None):
+    def __init__(self, number: int, name: str, group_id: str, tg_id: int = None, subjects: list = None):
         self.number: int = number
         self.name: str = name
         self.group_id: str = group_id
         self.tg_id: int = tg_id
+        self.subjects = subjects
         self.assignments = []
 
         dict.__init__(

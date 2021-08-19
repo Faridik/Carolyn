@@ -76,8 +76,7 @@ def grades():
     app.db.set_assignments_for_student(student)
     return flask.jsonify(
         dict(
-            score=student.score,
-            grade=student.grade,
+            subjects=student.subjects,
             assignments=student.assignments,
         )
     )

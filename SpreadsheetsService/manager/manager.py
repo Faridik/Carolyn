@@ -17,9 +17,11 @@ from models.group import StudentNotFound
 STUDENT_NUMBERS = 0
 STUDENT_NAMES = 1
 GROUP_IDS = 2  # for StudentList and AssignmentList
+STUDENT_SUBJECTS = 3
 TELEGRAM_IDS = 4
 AUTH_TOKEN = 5
 ASSIGNMENT_NAMES = 1
+ASSIGNMENT_GROUP = 2
 ASSIGNMENT_SUBJECT = 3
 ASSIGNMENT_WEIGHTS = 4
 ASSIGNMENT_RANGES = 5
@@ -162,6 +164,7 @@ class Manager:
                     row[STUDENT_NAMES],
                     row[GROUP_IDS],
                     row[TELEGRAM_IDS],
+                    row[STUDENT_SUBJECTS].split(',')
                 )
             )
 
@@ -176,7 +179,10 @@ class Manager:
         try:
             row = next(filter(f, values))
             return Student(
-                int(row[STUDENT_NUMBERS]), name, row[GROUP_IDS], row[TELEGRAM_IDS]
+                int(row[STUDENT_NUMBERS]), name, 
+                    row[GROUP_IDS], 
+                    row[TELEGRAM_IDS],
+                    row[STUDENT_SUBJECTS].split(',')
             )
         except StopIteration:
             raise StudentNotFound("Не могу найти студента по имени")
@@ -190,7 +196,10 @@ class Manager:
         try:
             row = next(filter(f, values))
             return Student(
-                int(row[STUDENT_NUMBERS]), row[STUDENT_NAMES], row[GROUP_IDS], tg_id
+                int(row[STUDENT_NUMBERS]), 
+                row[STUDENT_NAMES], 
+                row[GROUP_IDS], tg_id,
+                row[STUDENT_SUBJECTS].split(',')
             )
         except StopIteration:
             raise StudentNotFound("Не могу найти студента по telegram id")
@@ -207,7 +216,9 @@ class Manager:
             ass_values = list(map(toFloat, assignment_value[student.number]))
             student.add_assignment(
                 Assignment(
-                    row[ASSIGNMENT_NAMES], ass_values, toFloat(row[ASSIGNMENT_WEIGHTS])
+                    row[ASSIGNMENT_NAMES], ass_values, 
+                    toFloat(row[ASSIGNMENT_WEIGHTS]),
+                    row[ASSIGNMENT_SUBJECT]
                 )
             )
 
@@ -228,7 +239,10 @@ class Manager:
             row[TELEGRAM_IDS] = tg_id
             self.write_values(values, "StudentList")
             return Student(
-                int(row[STUDENT_NUMBERS]), row[STUDENT_NAMES], row[GROUP_IDS], tg_id
+                int(row[STUDENT_NUMBERS]), 
+                row[STUDENT_NAMES], 
+                row[GROUP_IDS], tg_id, 
+                row[STUDENT_SUBJECTS].split(',')
             )
         except StopIteration:
             raise StudentNotFound("Не могу найти студента по token")

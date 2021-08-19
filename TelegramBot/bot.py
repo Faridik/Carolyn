@@ -2,10 +2,17 @@ import logging
 from typing import Any, Optional
 import requests
 import time
+import ast
 from pathlib import Path
 
 
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, Update
+from telegram import (
+    ReplyKeyboardMarkup, 
+    ReplyKeyboardRemove, 
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 import telegram
 from telegram.ext import (
     Updater,
@@ -15,6 +22,7 @@ from telegram.ext import (
     ConversationHandler,
     CallbackContext,
 )
+from telegram.ext.callbackqueryhandler import CallbackQueryHandler
 
 from messages import Messages
 
@@ -146,19 +154,109 @@ def grades(update: Update, context: CallbackContext):
     look_msg = update.message.reply_html(MESSAGES.Score.START)
     try:
         data = requests.get(f"{HOST}/grades", params={"tg_id": user_id}).json()
-        score = data["score"]
-        grade = data["grade"]
-        n_of_assignments = len(data["assignments"])
+        
+        subjects = data["subjects"]
+        assignments = data["assignments"]
 
-        score_message = MESSAGES.Score.get(grade, score, n_of_assignments)
-        update.message.reply_html(score_message)
-        update.message.reply_sticker(MESSAGES.Stickers.bad())
+        if len(subjects) > 1:
+            context.user_data["subjects"] = subjects
+            context.user_data["all_assignments"] = assignments
+            reply_markup=build_menu_of_subjects(subjects)
+            update.message.reply_text(text='Выбирай дисциплину',
+                                reply_markup=reply_markup)
+        else:
+            context.user_data["assignments"] = assignments
+            reply_markup=build_menu_of_assignments(assignments)
+            update.message.reply_text(text='Выбирай работу',
+                                reply_markup=reply_markup)
+
+        #update.message.reply_sticker(MESSAGES.Stickers.bad())
     except:
         LOG.exception("Failed to get grades.")
         update.message.reply_sticker(MESSAGES.Stickers.DEAD)
     diff = time.monotonic() - start
     look_msg.edit_text(MESSAGES.Score.timeit(diff))
 
+def callback(update: Update, context: CallbackContext):
+
+    call = update.callback_query.data
+    
+    # Нажатие кнопок при выборе задания
+    if call.startswith("assignment#"):
+        
+        if "$back$" in call:
+            subjects = context.user_data["subjects"]
+            reply_markup=build_menu_of_subjects(subjects)
+            update.callback_query.message.edit_text(text='Выбирай дисциплину',
+                                reply_markup=reply_markup)
+            return
+
+        assignments = context.user_data["assignments"]
+        name, subject = call.split('#')[1:3]
+        
+        reply_markup=build_menu_of_assignments(assignments, name,
+                                    has_back_button=context.user_data["has_back_button"])
+
+        f = lambda ass: ass["name"] == name and ass["subject"] == subject
+        assignment = next(filter(f, assignments))
+        update.callback_query.message.edit_text(text=assignment["name"],
+                                                reply_markup=reply_markup)
+
+    # Нажатие кнопок при выборе дисциплины
+    if call.startswith("subject#"):
+        all_assignments = context.user_data["all_assignments"]
+        subject = call.split('#')[1]
+    
+        f = lambda ass: ass["subject"] == subject
+        assignments = list(filter(f, all_assignments))
+        context.user_data["assignments"] = assignments
+        context.user_data["has_back_button"] = True
+
+        reply_markup=build_menu_of_assignments(assignments, has_back_button=True)
+        update.callback_query.message.edit_text('Выбирай работу',
+                                                reply_markup=reply_markup)
+        
+def build_menu_of_subjects(subjects: list) -> InlineKeyboardMarkup:
+    button_list = []
+    for subject in subjects:
+        button_list.append(
+            InlineKeyboardButton(subject, 
+                callback_data=f'subject#{subject}')  
+        )
+    return InlineKeyboardMarkup(
+        build_menu(button_list, n_cols=2)
+        )
+
+def build_menu_of_assignments(assignments: dict, pressed_name: str = None, 
+                has_back_button: bool = False) -> InlineKeyboardMarkup:
+    button_list = []
+    for assignment in assignments:
+        if pressed_name and assignment["name"] == pressed_name:
+            title = f'💁‍♀️ {assignment["name"]}'
+        else:
+            title = assignment["name"]
+        button_list.append(
+            InlineKeyboardButton(title, 
+                callback_data=f'assignment#{assignment["name"]}' +
+                f'#{assignment["subject"]}'
+                )  
+        )
+    if has_back_button:
+        button_list.append(
+            InlineKeyboardButton('Назад', 
+                callback_data=f'assignment#$back$')
+        )
+    return InlineKeyboardMarkup(
+        build_menu(button_list, n_cols=3)
+        )
+
+def build_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
+    menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
+    if header_buttons:
+        menu.insert(0, header_buttons)
+    if footer_buttons:
+        menu.append(footer_buttons)
+    return menu
 
 def broadcast(update: Update, context: CallbackContext):
     """Команда: разослать студентам."""
@@ -236,7 +334,10 @@ def main() -> None:
     LOG.bot = updater.bot
 
     start_handler = CommandHandler("start", start)
+
     grades_handler = CommandHandler("grades", grades)
+
+    callback_handler = CallbackQueryHandler(callback)
 
     broadcast_handler = ConversationHandler(
         entry_points=[CommandHandler("broadcast", broadcast)],
@@ -250,6 +351,7 @@ def main() -> None:
     dispatcher.add_handler(start_handler)
     dispatcher.add_handler(grades_handler)
     dispatcher.add_handler(broadcast_handler)
+    dispatcher.add_handler(callback_handler)
 
     # Начало работы бота
     updater.start_polling()
