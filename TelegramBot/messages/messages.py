@@ -21,8 +21,10 @@ class Messages:
             }
             return cases.get(err, "😟 Возникли неполадки")
 
-    class Score:
+    class Assignments:
         START = "👀 Посмотрим (~3с) ..."
+        SELECT_COURSE = "👇 Выбери дисциплину"
+        SELECT_ASSNT = "👇 Выбери работу"
 
         @staticmethod
         def get(grade, score, n_of_assignments):

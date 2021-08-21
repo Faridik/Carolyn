@@ -1,99 +1,31 @@
+from pathlib import Path
 import logging
-from typing import Any, Optional
 import requests
 import time
-import ast
-from pathlib import Path
 
-
-from telegram import (
-    ReplyKeyboardMarkup, 
-    ReplyKeyboardRemove, 
-    Update,
-    InlineKeyboardButton,
-    InlineKeyboardMarkup,
-)
 import telegram
+from telegram import (
+    ReplyKeyboardRemove,
+    Update,
+)
 from telegram.ext import (
-    Updater,
-    CommandHandler,
-    MessageHandler,
-    Filters,
-    ConversationHandler,
     CallbackContext,
+    CommandHandler,
+    ConversationHandler,
+    Filters,
+    MessageHandler,
+    Updater,
 )
 from telegram.ext.callbackqueryhandler import CallbackQueryHandler
 
+from utils import TgLogger
+from utils.inline_keyboard import *
 from messages import Messages
 
 TOKEN = Path(".secrets/bot_token.txt").read_text()
 MESSAGES = Messages()
 HOST = "http://carolyn-spreadsheets:5000"
-CHAT_LOG_ID = -507530583  # ID канала где собираются логи
 BROADCAST_MESSAGE, BROADCAST_PUBLISH_DONE = range(2)
-
-
-class TgLogger(logging.Logger):
-    """Обертка на логгер, чтобы можно было использовать обычные лог-функции,
-    но при этом получать логи в телеграм чат.
-
-    Есть баг, который не позволяет вызывать лог с ленивыми аргументами. Если
-    вызывать
-    ```python
-    LOG.warning("%s", var)
-    ```
-    , то можно получить такую ошибку:
-    ```python
-    TypeError: _log_to_telegram() got multiple values for argument 'msg'
-    ```
-    Поэтому используйте,
-    ```
-    LOG.warning(f"{var}")
-    ```
-    """
-
-    def __init__(self, name, level=logging.NOTSET):
-        self._bot = None
-        self._chat_log_id = CHAT_LOG_ID
-        return super(TgLogger, self).__init__(name, level)
-
-    @property
-    def bot(self):
-        return self._bot
-
-    @bot.setter
-    def bot(self, value):
-        self._bot = value
-
-    def _log_to_telegram(
-        self,
-        msg: str,
-        *args,
-        emoji: str,
-    ):
-        if self._bot is not None:
-            txt = f"{emoji} {msg};"
-            self._bot.send_message(chat_id=CHAT_LOG_ID, text=txt)
-
-    def warning(self, msg: Any, *args: Any, **kwargs: Any) -> None:
-        self._log_to_telegram(msg=msg, emoji="⚠", *args)
-        return super().warning(
-            msg,
-            *args,
-            **kwargs,
-        )
-
-    def error(self, msg: Any, *args: Any, **kwargs: Any) -> None:
-        self._log_to_telegram(msg=msg, emoji="💢", *args)
-        return super().error(
-            msg,
-            *args,
-            **kwargs,
-        )
-
-    def exception(self, msg, *args: Any, **kwargs: Any) -> None:
-        self._log_to_telegram(msg=msg, emoji="💥", *args)
-        return super().exception(msg, *args, **kwargs)
 
 
 logging.setLoggerClass(TgLogger)
@@ -151,112 +83,76 @@ def grades(update: Update, context: CallbackContext):
 
     start = time.monotonic()
     # Длинная операция, сообщим о запущенном процессе.
-    look_msg = update.message.reply_html(MESSAGES.Score.START)
+    look_msg = update.message.reply_html(MESSAGES.Assignments.START)
     try:
         data = requests.get(f"{HOST}/grades", params={"tg_id": user_id}).json()
-        
+
         subjects = data["subjects"]
         assignments = data["assignments"]
 
         if len(subjects) > 1:
             context.user_data["subjects"] = subjects
             context.user_data["all_assignments"] = assignments
-            reply_markup=build_menu_of_subjects(subjects)
-            update.message.reply_text(text='Выбирай дисциплину',
-                                reply_markup=reply_markup)
+            reply_markup = build_menu_of_subjects(subjects)
+            update.message.reply_text(
+                text=MESSAGES.Assignments.SELECT_COURSE, reply_markup=reply_markup
+            )
         else:
             context.user_data["assignments"] = assignments
-            reply_markup=build_menu_of_assignments(assignments)
-            update.message.reply_text(text='Выбирай работу',
-                                reply_markup=reply_markup)
-
-        #update.message.reply_sticker(MESSAGES.Stickers.bad())
+            reply_markup = build_menu_of_assignments(assignments)
+            update.message.reply_text(
+                text=MESSAGES.Assignments.SELECT_ASSNT, reply_markup=reply_markup
+            )
     except:
         LOG.exception("Failed to get grades.")
         update.message.reply_sticker(MESSAGES.Stickers.DEAD)
     diff = time.monotonic() - start
     look_msg.edit_text(MESSAGES.Score.timeit(diff))
 
+
 def callback(update: Update, context: CallbackContext):
 
     call = update.callback_query.data
-    
+
     # Нажатие кнопок при выборе задания
     if call.startswith("assignment#"):
-        
+
         if "$back$" in call:
             subjects = context.user_data["subjects"]
-            reply_markup=build_menu_of_subjects(subjects)
-            update.callback_query.message.edit_text(text='Выбирай дисциплину',
-                                reply_markup=reply_markup)
+            reply_markup = build_menu_of_subjects(subjects)
+            update.callback_query.message.edit_text(
+                text=MESSAGES.Assignments.SELECT_COURSE, reply_markup=reply_markup
+            )
             return
 
         assignments = context.user_data["assignments"]
-        name, subject = call.split('#')[1:3]
-        
-        reply_markup=build_menu_of_assignments(assignments, name,
-                                    has_back_button=context.user_data["has_back_button"])
+        name, subject = call.split("#")[1:3]
+
+        reply_markup = build_menu_of_assignments(
+            assignments, name, has_back_button=context.user_data["has_back_button"]
+        )
 
         f = lambda ass: ass["name"] == name and ass["subject"] == subject
         assignment = next(filter(f, assignments))
-        update.callback_query.message.edit_text(text=assignment["name"],
-                                                reply_markup=reply_markup)
+        update.callback_query.message.edit_text(
+            text=assignment["name"], reply_markup=reply_markup
+        )
 
     # Нажатие кнопок при выборе дисциплины
     if call.startswith("subject#"):
         all_assignments = context.user_data["all_assignments"]
-        subject = call.split('#')[1]
-    
+        subject = call.split("#")[1]
+
         f = lambda ass: ass["subject"] == subject
         assignments = list(filter(f, all_assignments))
         context.user_data["assignments"] = assignments
         context.user_data["has_back_button"] = True
 
-        reply_markup=build_menu_of_assignments(assignments, has_back_button=True)
-        update.callback_query.message.edit_text('Выбирай работу',
-                                                reply_markup=reply_markup)
-        
-def build_menu_of_subjects(subjects: list) -> InlineKeyboardMarkup:
-    button_list = []
-    for subject in subjects:
-        button_list.append(
-            InlineKeyboardButton(subject, 
-                callback_data=f'subject#{subject}')  
-        )
-    return InlineKeyboardMarkup(
-        build_menu(button_list, n_cols=2)
+        reply_markup = build_menu_of_assignments(assignments, has_back_button=True)
+        update.callback_query.message.edit_text(
+            MESSAGES.Assignments.SELECT_ASSNT, reply_markup=reply_markup
         )
 
-def build_menu_of_assignments(assignments: dict, pressed_name: str = None, 
-                has_back_button: bool = False) -> InlineKeyboardMarkup:
-    button_list = []
-    for assignment in assignments:
-        if pressed_name and assignment["name"] == pressed_name:
-            title = f'💁‍♀️ {assignment["name"]}'
-        else:
-            title = assignment["name"]
-        button_list.append(
-            InlineKeyboardButton(title, 
-                callback_data=f'assignment#{assignment["name"]}' +
-                f'#{assignment["subject"]}'
-                )  
-        )
-    if has_back_button:
-        button_list.append(
-            InlineKeyboardButton('Назад', 
-                callback_data=f'assignment#$back$')
-        )
-    return InlineKeyboardMarkup(
-        build_menu(button_list, n_cols=3)
-        )
-
-def build_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
-    menu = [buttons[i:i + n_cols] for i in range(0, len(buttons), n_cols)]
-    if header_buttons:
-        menu.insert(0, header_buttons)
-    if footer_buttons:
-        menu.append(footer_buttons)
-    return menu
 
 def broadcast(update: Update, context: CallbackContext):
     """Команда: разослать студентам."""
