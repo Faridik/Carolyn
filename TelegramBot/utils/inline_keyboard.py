@@ -10,7 +10,9 @@ def build_menu_of_subjects(subjects: list) -> InlineKeyboardMarkup:
         button_list.append(
             InlineKeyboardButton(subject, callback_data=f"subject#{subject}")
         )
-    return InlineKeyboardMarkup(build_menu(button_list, n_cols=2))
+    end_button = [InlineKeyboardButton("Отмена", callback_data="cancel#")]
+    return InlineKeyboardMarkup(build_menu(button_list, n_cols=2, 
+                                        footer_buttons=end_button))
 
 
 def build_menu_of_assignments(
@@ -33,7 +35,9 @@ def build_menu_of_assignments(
         button_list.append(
             InlineKeyboardButton("Назад", callback_data=f"assignment#$back$")
         )
-    return InlineKeyboardMarkup(build_menu(button_list, n_cols=3))
+    end_button = [InlineKeyboardButton("Отмена", callback_data="cancel#")]
+    return InlineKeyboardMarkup(build_menu(button_list, n_cols=3, 
+                                        footer_buttons=end_button))
 
 
 def build_menu(buttons, n_cols, header_buttons=None, footer_buttons=None):
