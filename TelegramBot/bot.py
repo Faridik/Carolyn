@@ -7,6 +7,7 @@ import telegram
 from telegram import (
     ReplyKeyboardRemove,
     Update,
+    ParseMode,
 )
 from telegram.ext import (
     CallbackContext,
@@ -26,7 +27,7 @@ TOKEN = Path(".secrets/bot_token.txt").read_text()
 MESSAGES = Messages()
 HOST = "http://carolyn-spreadsheets:5000"
 BROADCAST_MESSAGE, BROADCAST_PUBLISH_DONE = range(2)
-
+GRADES_CALLBACK = 1
 
 logging.setLoggerClass(TgLogger)
 logging.basicConfig(
@@ -103,11 +104,15 @@ def grades(update: Update, context: CallbackContext):
             update.message.reply_text(
                 text=MESSAGES.Assignments.SELECT_ASSNT, reply_markup=reply_markup
             )
+        return_value = GRADES_CALLBACK
+
     except:
         LOG.exception("Failed to get grades.")
         update.message.reply_sticker(MESSAGES.Stickers.DEAD)
+        return_value = ConversationHandler.END
     diff = time.monotonic() - start
-    look_msg.edit_text(MESSAGES.Score.timeit(diff))
+    look_msg.edit_text(MESSAGES.Assignments.timeit(diff))
+    return return_value
 
 
 def callback(update: Update, context: CallbackContext):
@@ -123,7 +128,7 @@ def callback(update: Update, context: CallbackContext):
             update.callback_query.message.edit_text(
                 text=MESSAGES.Assignments.SELECT_COURSE, reply_markup=reply_markup
             )
-            return
+            return GRADES_CALLBACK
 
         assignments = context.user_data["assignments"]
         name, subject = call.split("#")[1:3]
@@ -135,7 +140,11 @@ def callback(update: Update, context: CallbackContext):
         f = lambda ass: ass["name"] == name and ass["subject"] == subject
         assignment = next(filter(f, assignments))
         update.callback_query.message.edit_text(
-            text=assignment["name"], reply_markup=reply_markup
+            text=MESSAGES.Assignments.get(assignment['name'], 
+                                        assignment['points'],
+                                        assignment['how_to_display']), 
+            parse_mode=ParseMode.HTML,
+            reply_markup=reply_markup
         )
 
     # Нажатие кнопок при выборе дисциплины
@@ -152,6 +161,29 @@ def callback(update: Update, context: CallbackContext):
         update.callback_query.message.edit_text(
             MESSAGES.Assignments.SELECT_ASSNT, reply_markup=reply_markup
         )
+
+    if call.startswith("cancel#"):
+        update.callback_query.message.edit_text(
+            MESSAGES.Assignments.END,
+        )
+        return ConversationHandler.END
+
+    return GRADES_CALLBACK
+
+def timeout(update: Update, context: CallbackContext):
+    update.callback_query.message.edit_text(
+        MESSAGES.Assignments.TIMEOUT, 
+        )
+    return ConversationHandler.END
+
+def grades_end(update: Update, context: CallbackContext):
+    update.message.edit_text(
+        MESSAGES.Assignments.TIMEOUT, 
+        )
+    update.message.reply_text(
+        MESSAGES.Assignments.END
+    )
+    return ConversationHandler.END
 
 
 def broadcast(update: Update, context: CallbackContext):
@@ -231,9 +263,20 @@ def main() -> None:
 
     start_handler = CommandHandler("start", start)
 
-    grades_handler = CommandHandler("grades", grades)
-
-    callback_handler = CallbackQueryHandler(callback)
+    grades_handler = ConversationHandler(
+        entry_points=[CommandHandler("grades", grades)],
+        states={
+            GRADES_CALLBACK: [CallbackQueryHandler(callback)],
+            ConversationHandler.TIMEOUT: [
+                MessageHandler(Filters.text | Filters.command, timeout)
+                ],
+            # ConversationHandler.END: [
+            #     MessageHandler(Filters.text | Filters.command, grades_end)
+            # ]
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+        conversation_timeout=10,
+    )
 
     broadcast_handler = ConversationHandler(
         entry_points=[CommandHandler("broadcast", broadcast)],
@@ -247,7 +290,7 @@ def main() -> None:
     dispatcher.add_handler(start_handler)
     dispatcher.add_handler(grades_handler)
     dispatcher.add_handler(broadcast_handler)
-    dispatcher.add_handler(callback_handler)
+    #dispatcher.add_handler(callback_handler)
 
     # Начало работы бота
     updater.start_polling()
