@@ -20,6 +20,8 @@ def build_menu_of_assignments(
 ) -> InlineKeyboardMarkup:
     button_list = []
     for assignment in assignments:
+        if not assignment['allow_to_display']:
+            continue
         if pressed_name and assignment["name"] == pressed_name:
             title = f'💁‍♀️ {assignment["name"]}'
         else:

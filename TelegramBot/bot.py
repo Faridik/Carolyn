@@ -95,15 +95,17 @@ def grades(update: Update, context: CallbackContext):
             context.user_data["subjects"] = subjects
             context.user_data["all_assignments"] = assignments
             reply_markup = build_menu_of_subjects(subjects)
-            update.message.reply_text(
+            msg = update.message.reply_text(
                 text=MESSAGES.Assignments.SELECT_COURSE, reply_markup=reply_markup
             )
         else:
             context.user_data["assignments"] = assignments
             reply_markup = build_menu_of_assignments(assignments)
-            update.message.reply_text(
+            msg = update.message.reply_text(
                 text=MESSAGES.Assignments.SELECT_ASSNT, reply_markup=reply_markup
             )
+        
+        context.user_data["msg"] = msg
         return_value = GRADES_CALLBACK
 
     except:
@@ -125,9 +127,10 @@ def callback(update: Update, context: CallbackContext):
         if "$back$" in call:
             subjects = context.user_data["subjects"]
             reply_markup = build_menu_of_subjects(subjects)
-            update.callback_query.message.edit_text(
+            msg = update.callback_query.message.edit_text(
                 text=MESSAGES.Assignments.SELECT_COURSE, reply_markup=reply_markup
             )
+            context.user_data["msg"] = msg
             return GRADES_CALLBACK
 
         assignments = context.user_data["assignments"]
@@ -139,13 +142,15 @@ def callback(update: Update, context: CallbackContext):
 
         f = lambda ass: ass["name"] == name and ass["subject"] == subject
         assignment = next(filter(f, assignments))
-        update.callback_query.message.edit_text(
+        msg = update.callback_query.message.edit_text(
             text=MESSAGES.Assignments.get(assignment['name'], 
                                         assignment['points'],
-                                        assignment['how_to_display']), 
+                                        assignment['how_to_display'],
+                                        assignment['notes']),
             parse_mode=ParseMode.HTML,
             reply_markup=reply_markup
         )
+        context.user_data["msg"] = msg
 
     # Нажатие кнопок при выборе дисциплины
     if call.startswith("subject#"):
@@ -158,9 +163,10 @@ def callback(update: Update, context: CallbackContext):
         context.user_data["has_back_button"] = True
 
         reply_markup = build_menu_of_assignments(assignments, has_back_button=True)
-        update.callback_query.message.edit_text(
+        msg = update.callback_query.message.edit_text(
             MESSAGES.Assignments.SELECT_ASSNT, reply_markup=reply_markup
         )
+        context.user_data["msg"] = msg
 
     if call.startswith("cancel#"):
         update.callback_query.message.edit_text(
@@ -171,20 +177,18 @@ def callback(update: Update, context: CallbackContext):
     return GRADES_CALLBACK
 
 def timeout(update: Update, context: CallbackContext):
-    update.callback_query.message.edit_text(
+    msg = context.user_data["msg"]
+    msg.edit_text(
         MESSAGES.Assignments.TIMEOUT, 
         )
     return ConversationHandler.END
 
 def grades_end(update: Update, context: CallbackContext):
-    update.message.edit_text(
-        MESSAGES.Assignments.TIMEOUT, 
-        )
-    update.message.reply_text(
+    msg = context.user_data["msg"]
+    msg.edit_text(
         MESSAGES.Assignments.END
     )
     return ConversationHandler.END
-
 
 def broadcast(update: Update, context: CallbackContext):
     """Команда: разослать студентам."""
@@ -270,12 +274,12 @@ def main() -> None:
             ConversationHandler.TIMEOUT: [
                 MessageHandler(Filters.text | Filters.command, timeout)
                 ],
-            # ConversationHandler.END: [
-            #     MessageHandler(Filters.text | Filters.command, grades_end)
-            # ]
+            ConversationHandler.END: [
+                MessageHandler(Filters.text | Filters.command, grades_end)
+            ]
         },
         fallbacks=[CommandHandler("cancel", cancel)],
-        conversation_timeout=10,
+        #conversation_timeout=10,
     )
 
     broadcast_handler = ConversationHandler(

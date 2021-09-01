@@ -25,13 +25,26 @@ class Messages:
         START = "👀 Посмотрим (~3с) ..."
         SELECT_COURSE = "👇 Выбери дисциплину"
         SELECT_ASSNT = "👇 Выбери работу"
+        END = "😉 Всего наилучшего"
+        TIMEOUT = "🕛 Время запроса вышло"
 
         @staticmethod
-        def get(grade, score, n_of_assignments):
-            summary = (
-                f"Ранг: <b>{score:.2f}</b> {n_of_assignments} зад.\n"
-                + f"Оценка: <b>{grade:.2f}</b>"
-            )
+        def get(name: str, assignment: list, how_to_display: str, notes: str):
+            is_float, n_cols, n_rows = how_to_display.split(',')
+            n_cols, n_rows = int(n_cols), int(n_rows)
+            summary = f'<b>{name}</b>:\n'
+            if is_float == 'z':
+                d = {0 : '❎', 1 : '✅'}
+                for item in range(0, len(assignment), n_cols):
+                    summary += ''.join(list(map(d.get, 
+                        assignment[item : item + n_cols]))) + '\n'
+            elif is_float == 'r':
+                to_str = lambda x: f'{x:.2f}'
+                for item in range(0, len(assignment), n_cols):
+                    summary += ' '.join(list(map(to_str,
+                        assignment[item: item + n_cols]))) + '\n'
+                summary += f'Σ: {to_str(sum(assignment))}\n'
+            summary += f"\n{notes}"
             return summary
 
         @staticmethod
