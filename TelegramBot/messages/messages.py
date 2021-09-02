@@ -30,20 +30,24 @@ class Messages:
 
         @staticmethod
         def get(name: str, assignment: list, how_to_display: str, notes: str):
-            is_float, n_cols, n_rows = how_to_display.split(',')
+            is_float, n_cols, n_rows = how_to_display.split(",")
             n_cols, n_rows = int(n_cols), int(n_rows)
-            summary = f'<b>{name}</b>:\n'
-            if is_float == 'z':
-                d = {0 : '❎', 1 : '✅'}
+            summary = f"<b>{name}</b>:\n"
+            if is_float == "z":
+                d = {0: "🟥", 1: "✅"}
                 for item in range(0, len(assignment), n_cols):
-                    summary += ''.join(list(map(d.get, 
-                        assignment[item : item + n_cols]))) + '\n'
-            elif is_float == 'r':
-                to_str = lambda x: f'{x:.2f}'
+                    summary += (
+                        "".join(list(map(d.get, assignment[item : item + n_cols])))
+                        + "\n"
+                    )
+            elif is_float == "r":
+                to_str = lambda x: f"{x:.2f}"
                 for item in range(0, len(assignment), n_cols):
-                    summary += ' '.join(list(map(to_str,
-                        assignment[item: item + n_cols]))) + '\n'
-                summary += f'Σ: {to_str(sum(assignment))}\n'
+                    summary += (
+                        " ".join(list(map(to_str, assignment[item : item + n_cols])))
+                        + "\n"
+                    )
+                summary += f"Σ: {to_str(sum(assignment))}\n"
             summary += f"\n{notes}"
             return summary
 

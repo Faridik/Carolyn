@@ -27,7 +27,7 @@ TOKEN = Path(".secrets/bot_token.txt").read_text()
 MESSAGES = Messages()
 HOST = "http://carolyn-spreadsheets:5000"
 BROADCAST_MESSAGE, BROADCAST_PUBLISH_DONE = range(2)
-GRADES_CALLBACK = 1
+GRADES_ASSNT, GRADES_VIEW = range(2)
 
 logging.setLoggerClass(TgLogger)
 logging.basicConfig(
@@ -77,118 +77,105 @@ def start(update: Update, context: CallbackContext):
     )
 
 
-def grades(update: Update, context: CallbackContext):
-    """Команда: Получить оценки студента."""
+def grades_start(update: Update, context: CallbackContext):
+    """Сообщение 'Выбери дисциплину'.
 
+    Обновляет текст сообщения и дает клавиатуру с выбором дисциплины.
+    """
     user_id = update.message.from_user.id
-
     start = time.monotonic()
     # Длинная операция, сообщим о запущенном процессе.
     look_msg = update.message.reply_html(MESSAGES.Assignments.START)
+
     try:
         data = requests.get(f"{HOST}/grades", params={"tg_id": user_id}).json()
-
-        subjects = data["subjects"]
-        assignments = data["assignments"]
-
-        if len(subjects) > 1:
-            context.user_data["subjects"] = subjects
-            context.user_data["all_assignments"] = assignments
-            reply_markup = build_menu_of_subjects(subjects)
-            msg = update.message.reply_text(
-                text=MESSAGES.Assignments.SELECT_COURSE, reply_markup=reply_markup
-            )
-        else:
-            context.user_data["assignments"] = assignments
-            reply_markup = build_menu_of_assignments(assignments)
-            msg = update.message.reply_text(
-                text=MESSAGES.Assignments.SELECT_ASSNT, reply_markup=reply_markup
-            )
-        
-        context.user_data["msg"] = msg
-        return_value = GRADES_CALLBACK
-
     except:
         LOG.exception("Failed to get grades.")
         update.message.reply_sticker(MESSAGES.Stickers.DEAD)
-        return_value = ConversationHandler.END
-    diff = time.monotonic() - start
-    look_msg.edit_text(MESSAGES.Assignments.timeit(diff))
-    return return_value
-
-
-def callback(update: Update, context: CallbackContext):
-
-    call = update.callback_query.data
-
-    # Нажатие кнопок при выборе задания
-    if call.startswith("assignment#"):
-
-        if "$back$" in call:
-            subjects = context.user_data["subjects"]
-            reply_markup = build_menu_of_subjects(subjects)
-            msg = update.callback_query.message.edit_text(
-                text=MESSAGES.Assignments.SELECT_COURSE, reply_markup=reply_markup
-            )
-            context.user_data["msg"] = msg
-            return GRADES_CALLBACK
-
-        assignments = context.user_data["assignments"]
-        name, subject = call.split("#")[1:3]
-
-        reply_markup = build_menu_of_assignments(
-            assignments, name, has_back_button=context.user_data["has_back_button"]
-        )
-
-        f = lambda ass: ass["name"] == name and ass["subject"] == subject
-        assignment = next(filter(f, assignments))
-        msg = update.callback_query.message.edit_text(
-            text=MESSAGES.Assignments.get(assignment['name'], 
-                                        assignment['points'],
-                                        assignment['how_to_display'],
-                                        assignment['notes']),
-            parse_mode=ParseMode.HTML,
-            reply_markup=reply_markup
-        )
-        context.user_data["msg"] = msg
-
-    # Нажатие кнопок при выборе дисциплины
-    if call.startswith("subject#"):
-        all_assignments = context.user_data["all_assignments"]
-        subject = call.split("#")[1]
-
-        f = lambda ass: ass["subject"] == subject
-        assignments = list(filter(f, all_assignments))
-        context.user_data["assignments"] = assignments
-        context.user_data["has_back_button"] = True
-
-        reply_markup = build_menu_of_assignments(assignments, has_back_button=True)
-        msg = update.callback_query.message.edit_text(
-            MESSAGES.Assignments.SELECT_ASSNT, reply_markup=reply_markup
-        )
-        context.user_data["msg"] = msg
-
-    if call.startswith("cancel#"):
-        update.callback_query.message.edit_text(
-            MESSAGES.Assignments.END,
-        )
         return ConversationHandler.END
 
-    return GRADES_CALLBACK
-
-def timeout(update: Update, context: CallbackContext):
-    msg = context.user_data["msg"]
-    msg.edit_text(
-        MESSAGES.Assignments.TIMEOUT, 
-        )
-    return ConversationHandler.END
-
-def grades_end(update: Update, context: CallbackContext):
-    msg = context.user_data["msg"]
-    msg.edit_text(
-        MESSAGES.Assignments.END
+    context.user_data["subjects"] = data["subjects"]
+    context.user_data["assignments"] = data["assignments"]
+    diff = time.monotonic() - start
+    look_msg.edit_text(MESSAGES.Assignments.timeit(diff))
+    update.message.reply_text(
+        MESSAGES.Assignments.SELECT_COURSE,
+        reply_markup=build_menu_of_subjects(data["subjects"]),
     )
-    return ConversationHandler.END
+    return GRADES_ASSNT
+
+
+def grades_pick_assignment(update: Update, context: CallbackContext):
+    """Сообщение 'Выбери задание'.
+
+    Обновляет текст сообщения и дает клавиатуру с выбором дисциплины.
+    В `callback_query` содержится имя предмета, либо ключевое слово.
+    Может завершить диалог.
+    """
+    query = update.callback_query
+    query.answer()
+    if query.data == "cancel":
+        query.edit_message_text(MESSAGES.Assignments.END, reply_markup=None)
+        return ConversationHandler.END
+    context.user_data["selected_subject"] = query.data
+    assignments = [
+        a for a in context.user_data["assignments"] if a["subject"] == query.data
+    ]
+    query.edit_message_text(
+        MESSAGES.Assignments.SELECT_ASSNT,
+        reply_markup=build_menu_of_assignments(assignments, has_back_button=True),
+    )
+    return GRADES_VIEW
+
+
+def grades_view(update: Update, context: CallbackContext):
+    """Отображение домашки.
+
+    В `callback_query` содержится UUID, идентификатор задания. Либо команда:
+    cancel или back. Может завершить диалог.
+    """
+    query = update.callback_query
+    query.answer()
+
+    if query.data == "cancel":
+        query.edit_message_text(MESSAGES.Assignments.END, reply_markup=None)
+        return ConversationHandler.END
+
+    if query.data == "back":
+        subjects = context.user_data["subjects"]
+        query.edit_message_text(
+            MESSAGES.Assignments.SELECT_COURSE,
+            reply_markup=build_menu_of_subjects(subjects),
+        )
+        return GRADES_ASSNT
+
+    assignments_map = {a["uuid"]: a for a in context.user_data["assignments"]}
+    assignment = assignments_map[query.data]
+    subject = context.user_data["selected_subject"]
+
+    raw_menu = build_menu(
+        [
+            InlineKeyboardButton("Отмена", callback_data="cancel"),
+            InlineKeyboardButton("⏮ Назад", callback_data=subject),
+        ],
+        2,
+    )
+
+    reply_markup = InlineKeyboardMarkup(raw_menu)
+
+    query.edit_message_text(
+        text=MESSAGES.Assignments.get(
+            assignment["name"],
+            assignment["points"],
+            assignment["how_to_display"],
+            assignment["notes"],
+        ),
+        parse_mode=ParseMode.HTML,
+        reply_markup=reply_markup,
+    )
+
+    return GRADES_ASSNT
+
 
 def broadcast(update: Update, context: CallbackContext):
     """Команда: разослать студентам."""
@@ -268,18 +255,12 @@ def main() -> None:
     start_handler = CommandHandler("start", start)
 
     grades_handler = ConversationHandler(
-        entry_points=[CommandHandler("grades", grades)],
+        entry_points=[CommandHandler("grades", grades_start)],
         states={
-            GRADES_CALLBACK: [CallbackQueryHandler(callback)],
-            ConversationHandler.TIMEOUT: [
-                MessageHandler(Filters.text | Filters.command, timeout)
-                ],
-            ConversationHandler.END: [
-                MessageHandler(Filters.text | Filters.command, grades_end)
-            ]
+            GRADES_ASSNT: [CallbackQueryHandler(grades_pick_assignment)],
+            GRADES_VIEW: [CallbackQueryHandler(grades_view)],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
-        #conversation_timeout=10,
     )
 
     broadcast_handler = ConversationHandler(
@@ -294,7 +275,6 @@ def main() -> None:
     dispatcher.add_handler(start_handler)
     dispatcher.add_handler(grades_handler)
     dispatcher.add_handler(broadcast_handler)
-    #dispatcher.add_handler(callback_handler)
 
     # Начало работы бота
     updater.start_polling()
