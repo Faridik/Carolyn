@@ -18,8 +18,9 @@ STUDENT_NUMBERS = 0
 STUDENT_NAMES = 1
 GROUP_IDS = 2  # for StudentList and AssignmentList
 STUDENT_SUBJECTS = 3
-TELEGRAM_IDS = 4
+STUDENT_TELEGRAM_IDS = 4
 AUTH_TOKEN = 5
+STUDENT_SUBSCRIPTION = 6
 ASSIGNMENT_NAMES = 1
 ASSIGNMENT_GROUP = 2
 ASSIGNMENT_SUBJECT = 3
@@ -62,6 +63,15 @@ class AnotherStudentAlreadyAuthed(Exception):
         self.message = message
         super().__init__(self.message)
 
+class StudentAlreadySubbed(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
+
+class StudentAlreadyUnsubbed(Exception):
+    def __init__(self, message):
+        self.message = message
+        super().__init__(self.message)
 
 class Manager:
     """Позволяет выполнять операции с Google таблицами."""
@@ -148,7 +158,7 @@ class Manager:
                     int(row[STUDENT_NUMBERS]),
                     row[STUDENT_NAMES],
                     group_id,
-                    row[TELEGRAM_IDS],
+                    row[STUDENT_TELEGRAM_IDS],
                 )
             )
 
@@ -162,11 +172,32 @@ class Manager:
             groups[row[GROUP_IDS]].group_id = row[GROUP_IDS]
             groups[row[GROUP_IDS]].add_student(
                 Student(
-                    int(row[STUDENT_NUMBERS]),
-                    row[STUDENT_NAMES],
-                    row[GROUP_IDS],
-                    row[TELEGRAM_IDS],
-                    row[STUDENT_SUBJECTS].split(',')
+                    number=int(row[STUDENT_NUMBERS]),
+                    name=row[STUDENT_NAMES],
+                    group_id=row[GROUP_IDS],
+                    tg_id=row[STUDENT_TELEGRAM_IDS],
+                    subjects=row[STUDENT_SUBJECTS].split(','),
+                    is_subbed=bool(int(row[STUDENT_SUBSCRIPTION])),
+                )
+            )
+
+        return groups
+
+    def get_all_groups_only_sub_students(self) -> list:
+        """Получить список всех групп."""
+        values = self.get_values()
+        groups = defaultdict(lambda: Group("0"))
+        f = lambda row: row[STUDENT_SUBSCRIPTION] == '1'
+        for row in filter(f,values):
+            groups[row[GROUP_IDS]].group_id = row[GROUP_IDS]
+            groups[row[GROUP_IDS]].add_student(
+                Student(
+                    number=int(row[STUDENT_NUMBERS]),
+                    name=row[STUDENT_NAMES],
+                    group_id=row[GROUP_IDS],
+                    tg_id=row[STUDENT_TELEGRAM_IDS],
+                    subjects=row[STUDENT_SUBJECTS].split(','),
+                    is_subbed=bool(int(row[STUDENT_SUBSCRIPTION])),
                 )
             )
 
@@ -183,7 +214,7 @@ class Manager:
             return Student(
                 int(row[STUDENT_NUMBERS]), name, 
                     row[GROUP_IDS], 
-                    row[TELEGRAM_IDS],
+                    row[STUDENT_TELEGRAM_IDS],
                     row[STUDENT_SUBJECTS].split(',')
             )
         except StopIteration:
@@ -194,7 +225,7 @@ class Manager:
 
         values = self.get_values("StudentList")
 
-        f = lambda row: tg_id == row[TELEGRAM_IDS]
+        f = lambda row: tg_id == row[STUDENT_TELEGRAM_IDS]
         try:
             row = next(filter(f, values))
             return Student(
@@ -242,13 +273,13 @@ class Manager:
         f = lambda row: token == row[AUTH_TOKEN]
         try:
             row = next(filter(f, values))
-            if row[TELEGRAM_IDS] == tg_id:
+            if row[STUDENT_TELEGRAM_IDS] == tg_id:
                 raise StudentAlreadyAuthed("Студент уже зарегистрировался")
-            elif row[TELEGRAM_IDS]:
+            elif row[STUDENT_TELEGRAM_IDS]:
                 raise AnotherStudentAlreadyAuthed(
                     "Другой студент зарегистрировался по token"
                 )
-            row[TELEGRAM_IDS] = tg_id
+            row[STUDENT_TELEGRAM_IDS] = tg_id
             self.write_values(values, "StudentList")
             return Student(
                 int(row[STUDENT_NUMBERS]), 
@@ -258,3 +289,40 @@ class Manager:
             )
         except StopIteration:
             raise StudentNotFound("Не могу найти студента по token")
+
+
+    def sub_by_tg_id(self, tg_id: str) -> bool:
+        """Подписка пользователя по tg_id"""
+
+        values = self.get_values("StudentList")
+
+        f = lambda row: tg_id == row[STUDENT_TELEGRAM_IDS]
+        try:
+            row = next(filter(f, values))
+            if row[STUDENT_SUBSCRIPTION] == '1':
+                raise StudentAlreadySubbed("Студент уже подписался")
+
+            row[STUDENT_SUBSCRIPTION] = 1
+            self.write_values(values, "StudentList")
+            return True
+        except StopIteration:
+            raise StudentNotFound("Не могу найти студента по tg_id")
+
+    def unsub_by_tg_id(self, tg_id: str) -> bool:
+        """Подписка пользователя по tg_id"""
+
+        values = self.get_values("StudentList")
+
+        f = lambda row: tg_id == row[STUDENT_TELEGRAM_IDS]
+        try:
+            row = next(filter(f, values))
+            if row[STUDENT_SUBSCRIPTION] == '0':
+                raise StudentAlreadyUnsubbed(
+                    "Студент уже не подписан (или никогда не был)"
+                    )
+
+            row[STUDENT_SUBSCRIPTION] = 0
+            self.write_values(values, "StudentList")
+            return True
+        except StopIteration:
+            raise StudentNotFound("Не могу найти студента по tg_id")

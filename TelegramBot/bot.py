@@ -66,7 +66,7 @@ def start(update: Update, context: CallbackContext):
         return
 
     if req.status_code != 200:
-        LOG.error(f"Ошибка авторизации, у пользователя @{username} {data}")
+        LOG.error(f"Ошибка авторизации у пользователя @{username} {data}")
         err = data.get("error", "")
         update.message.reply_text(text=MESSAGES.Auth.failure(err))
         update.message.reply_sticker(MESSAGES.Stickers.DEAD)
@@ -176,7 +176,6 @@ def grades_view(update: Update, context: CallbackContext):
 
     return GRADES_ASSNT
 
-
 def broadcast(update: Update, context: CallbackContext):
     """Команда: разослать студентам."""
     access_message = update.message.reply_text("🔐 Проверка доступа...")
@@ -244,6 +243,68 @@ def cancel(update: Update, context: CallbackContext):
     return ConversationHandler.END
 
 
+def sub(update: Update, context: CallbackContext):
+    """Стартовое сообщение (к команде /start)"""
+
+    user_id = update.message.from_user.id
+    username = update.message.from_user.username
+
+    # Длинная операция, сообщим о запущенном процессе.
+    update.message.reply_text(text=MESSAGES.Sub.START)
+
+    LOG.info(f"Subcripting {user_id}")
+
+    try:
+        req = requests.get(
+            f"{HOST}/sub",
+            params={"tg_id": user_id},
+        )
+        data = req.json()
+    except requests.exceptions.RequestException:
+        LOG.exception("@{user_id} вызвал: Ошибка подключения к сервису Spreadsheets.")
+        update.message.reply_sticker(MESSAGES.Stickers.DEAD)
+        return
+
+    if req.status_code != 200:
+        LOG.error(f"Ошибка подписки, у пользователя @{username} {data}")
+        err = data.get("error", "")
+        update.message.reply_text(text=MESSAGES.Sub.failure(err))
+        update.message.reply_sticker(MESSAGES.Stickers.bad())
+        return
+
+    update.message.reply_text(text=MESSAGES.Sub.SUBBED)
+
+def unsub(update: Update, context: CallbackContext):
+    """Стартовое сообщение (к команде /start)"""
+
+    user_id = update.message.from_user.id
+    username = update.message.from_user.username
+
+    # Длинная операция, сообщим о запущенном процессе.
+    update.message.reply_text(text=MESSAGES.Unsub.START)
+
+    LOG.info(f"Unsubcripting {user_id}")
+
+    try:
+        req = requests.get(
+            f"{HOST}/unsub",
+            params={"tg_id": user_id},
+        )
+        data = req.json()
+    except requests.exceptions.RequestException:
+        LOG.exception("@{user_id} вызвал: Ошибка подключения к сервису Spreadsheets.")
+        update.message.reply_sticker(MESSAGES.Stickers.DEAD)
+        return
+
+    if req.status_code != 200:
+        LOG.error(f"Ошибка отписки, у пользователя @{username} {data}")
+        err = data.get("error", "")
+        update.message.reply_text(text=MESSAGES.Unsub.failure(err))
+        update.message.reply_sticker(MESSAGES.Stickers.bad())
+        return
+
+    update.message.reply_text(text=MESSAGES.Unsub.UNSUBBED)
+
 # ==================================================================== HANDLERS
 
 
@@ -272,9 +333,14 @@ def main() -> None:
         fallbacks=[CommandHandler("cancel", cancel)],
     )
 
+    sub_handler = CommandHandler("sub", sub)
+    unsub_handler = CommandHandler("unsub", unsub)
+
     dispatcher.add_handler(start_handler)
     dispatcher.add_handler(grades_handler)
     dispatcher.add_handler(broadcast_handler)
+    dispatcher.add_handler(sub_handler)
+    dispatcher.add_handler(unsub_handler)
 
     # Начало работы бота
     updater.start_polling()

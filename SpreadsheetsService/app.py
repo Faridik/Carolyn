@@ -87,7 +87,23 @@ def grades():
 @superuser
 def broadcast(student):
     """Выполняет рассылку студентам."""
-    return flask.jsonify(app.db.get_all_groups())
+    return flask.jsonify(app.db.get_all_groups_only_sub_students())
+
+
+@app.route("/sub")
+@availability
+def sub():
+    tg_id = flask.request.args.get("tg_id", None)
+    is_subbed = app.db.sub_by_tg_id(tg_id)
+    return flask.jsonify(dict(is_subbed=is_subbed))
+
+@app.route("/unsub")
+@availability
+def unsub():
+    tg_id = flask.request.args.get("tg_id", None)
+    is_unsubbed = app.db.unsub_by_tg_id(tg_id)
+    return flask.jsonify(dict(is_unsubbed=is_unsubbed))
+
 
 
 @app.errorhandler(StudentAlreadyAuthed)
@@ -104,6 +120,13 @@ def show_error(err):
 def show_error(err):
     return flask.jsonify({"error": type(err).__name__, "message": err.message}), 404
 
+@app.errorhandler(StudentAlreadySubbed)
+def show_error(err):
+    return flask.jsonify({"error": type(err).__name__, "message": err.message}), 405
+
+@app.errorhandler(StudentAlreadyUnsubbed)
+def show_error(err):
+    return flask.jsonify({"error": type(err).__name__, "message": err.message}), 406
 
 @app.errorhandler(BadRequest)
 def show_error(err):
