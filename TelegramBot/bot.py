@@ -1,7 +1,9 @@
+from collections import defaultdict
 from pathlib import Path
 import logging
 import requests
 import time
+import datetime
 
 import telegram
 from telegram import (
@@ -19,17 +21,19 @@ from telegram.ext import (
 )
 from telegram.ext.callbackqueryhandler import CallbackQueryHandler
 
-from utils import TgLogger
+# from utils import TgLogger
 from utils.inline_keyboard import *
 from messages import Messages
 
 TOKEN = Path(".secrets/bot_token.txt").read_text()
 MESSAGES = Messages()
 HOST = "http://carolyn-spreadsheets:5000"
+SUB_TIME_DELTA = datetime.timedelta(minutes=15)
+
 BROADCAST_MESSAGE, BROADCAST_PUBLISH_DONE = range(2)
 GRADES_ASSNT, GRADES_VIEW = range(2)
 
-logging.setLoggerClass(TgLogger)
+# logging.setLoggerClass(TgLogger)
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
@@ -176,12 +180,13 @@ def grades_view(update: Update, context: CallbackContext):
 
     return GRADES_ASSNT
 
+
 def broadcast(update: Update, context: CallbackContext):
     """Команда: разослать студентам."""
     access_message = update.message.reply_text("🔐 Проверка доступа...")
     user_id = update.message.from_user.id
     try:
-        r = requests.get(f"{HOST}/broadcast", params={"tg_id": user_id})
+        r = requests.get(f"{HOST}/students", params={"tg_id": user_id})
         assert r.status_code == 200, "Доступ запрещен к /broadcast"
         data = r.json()
         context.bot_data["groups"] = data
@@ -250,9 +255,7 @@ def sub(update: Update, context: CallbackContext):
     username = update.message.from_user.username
 
     # Длинная операция, сообщим о запущенном процессе.
-    update.message.reply_text(text=MESSAGES.Sub.START)
-
-    LOG.info(f"Subcripting {user_id}")
+    msg = update.message.reply_text(text=MESSAGES.Sub.START)
 
     try:
         req = requests.get(
@@ -272,7 +275,8 @@ def sub(update: Update, context: CallbackContext):
         update.message.reply_sticker(MESSAGES.Stickers.bad())
         return
 
-    update.message.reply_text(text=MESSAGES.Sub.SUBBED)
+    msg.edit_text(text=MESSAGES.Sub.SUBBED)
+
 
 def unsub(update: Update, context: CallbackContext):
     """Стартовое сообщение (к команде /start)"""
@@ -281,9 +285,9 @@ def unsub(update: Update, context: CallbackContext):
     username = update.message.from_user.username
 
     # Длинная операция, сообщим о запущенном процессе.
-    update.message.reply_text(text=MESSAGES.Unsub.START)
+    msg = update.message.reply_text(text=MESSAGES.Unsub.START)
 
-    LOG.info(f"Unsubcripting {user_id}")
+    # LOG.info(f"Unsubcripting {user_id}")
 
     try:
         req = requests.get(
@@ -303,7 +307,54 @@ def unsub(update: Update, context: CallbackContext):
         update.message.reply_sticker(MESSAGES.Stickers.bad())
         return
 
-    update.message.reply_text(text=MESSAGES.Unsub.UNSUBBED)
+    msg.edit_text(text=MESSAGES.Unsub.UNSUBBED)
+
+
+# ======================================================================= SCHED
+
+
+def grades_checker(context: CallbackContext):
+    """Задача по проверке оценок.
+
+    Пробегает по списку подписавшихся и для каждого студента запрашивает
+    `/grades/fingerprint`. Отпечаток (fingerprint) - текстовая строка
+    захешированных оценок. При изменении оценок, меняется и их хеш. Бот с каждым
+    вызовом задачи запоминает эти хеши всех студентов и сверяет их. Если вдруг
+    несовпадение, то значит, что данные об оценках были изменены.
+
+    Это простой и универсальный способ смотреть изменения, но он не дает инфы о
+    том, в каком задании появилась новая оценка.
+
+    """
+
+    r = requests.get(f"{HOST}/students", params={"god_mode": True, "sub_only": True})
+    data = r.json()
+    context.bot_data["groups"] = data
+
+    # При инициализации бота словарь отсутствует
+    if "fingerprints" not in context.bot_data:
+        context.bot_data["fingerprints"] = defaultdict(str)
+
+    for group in data.values():
+        for student in group["students"]:
+            tg_id = student["tg_id"]
+            r = requests.get(f"{HOST}/grades/fingerprint", params={"tg_id": tg_id})
+            fingerprint = r.json().get("fingerprint", "")
+            old_fingerprint = context.bot_data["fingerprints"][tg_id]
+            # При инициализации у старого отпечатка ещё не установлено значение.
+            # Там находится пустая строка, поэтому нужна дополн. проверка.
+            if old_fingerprint != fingerprint and old_fingerprint != "":
+                context.bot.send_message(
+                    chat_id=tg_id,
+                    text=MESSAGES.Sub.GRADES_CHANGED,
+                )
+                LOG.info(
+                    "Fingerprint = %s, old = %s",
+                    fingerprint,
+                    context.bot_data["fingerprints"][tg_id],
+                )
+            context.bot_data["fingerprints"][tg_id] = fingerprint
+
 
 # ==================================================================== HANDLERS
 
@@ -311,6 +362,8 @@ def unsub(update: Update, context: CallbackContext):
 def main() -> None:
     updater = Updater(token=TOKEN, use_context=True)
     dispatcher = updater.dispatcher
+    jobber = updater.job_queue
+    jobber.run_repeating(grades_checker, SUB_TIME_DELTA)
     LOG.bot = updater.bot
 
     start_handler = CommandHandler("start", start)

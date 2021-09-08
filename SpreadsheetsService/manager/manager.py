@@ -31,6 +31,7 @@ ASSIGNMENT_HOW_TO_DISPLAY = 7
 ASSIGNMENT_NOTES_RANGES = 8
 TOKEN_FILE = pathlib.Path() / ".secrets" / "token.json"
 CLIENT_SECRET_FILE = pathlib.Path() / ".secrets" / "client_secret.json"
+NON_CACHED_RANGES = ("StudentList",)
 
 
 def timed_lru_cache(seconds: int, maxsize: int = 128):
@@ -44,7 +45,9 @@ def timed_lru_cache(seconds: int, maxsize: int = 128):
             if datetime.utcnow() >= func.expiration:
                 func.cache_clear()
                 func.expiration = datetime.utcnow() + func.lifetime
-
+            # if args[1] in NON_CACHED_RANGES:
+            #     func.cache_clear()
+            print(*args)
             return func(*args, **kwargs)
 
         return wrapped_func
@@ -63,15 +66,18 @@ class AnotherStudentAlreadyAuthed(Exception):
         self.message = message
         super().__init__(self.message)
 
+
 class StudentAlreadySubbed(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
 
+
 class StudentAlreadyUnsubbed(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(self.message)
+
 
 class Manager:
     """Позволяет выполнять операции с Google таблицами."""
@@ -99,7 +105,6 @@ class Manager:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                print(CLIENT_SECRET_FILE)
                 flow = InstalledAppFlow.from_client_secrets_file(
                     str(CLIENT_SECRET_FILE), scopes
                 )
@@ -120,13 +125,11 @@ class Manager:
         Returns:
             list of rows [[val1, val2, ...], [], ...]
         """
-
         result = (
             self.sheet.values()
             .get(spreadsheetId=self.spreadsheet_id, range=range_name)
             .execute()
         )
-
         return result.get("values", [])
 
     def write_values(self, values: list, range_name: str):
@@ -176,7 +179,7 @@ class Manager:
                     name=row[STUDENT_NAMES],
                     group_id=row[GROUP_IDS],
                     tg_id=row[STUDENT_TELEGRAM_IDS],
-                    subjects=row[STUDENT_SUBJECTS].split(','),
+                    subjects=row[STUDENT_SUBJECTS].split(","),
                     is_subbed=bool(int(row[STUDENT_SUBSCRIPTION])),
                 )
             )
@@ -187,8 +190,8 @@ class Manager:
         """Получить список всех групп."""
         values = self.get_values()
         groups = defaultdict(lambda: Group("0"))
-        f = lambda row: row[STUDENT_SUBSCRIPTION] == '1'
-        for row in filter(f,values):
+        f = lambda row: row[STUDENT_SUBSCRIPTION] == "1"
+        for row in filter(f, values):
             groups[row[GROUP_IDS]].group_id = row[GROUP_IDS]
             groups[row[GROUP_IDS]].add_student(
                 Student(
@@ -196,7 +199,7 @@ class Manager:
                     name=row[STUDENT_NAMES],
                     group_id=row[GROUP_IDS],
                     tg_id=row[STUDENT_TELEGRAM_IDS],
-                    subjects=row[STUDENT_SUBJECTS].split(','),
+                    subjects=row[STUDENT_SUBJECTS].split(","),
                     is_subbed=bool(int(row[STUDENT_SUBSCRIPTION])),
                 )
             )
@@ -212,10 +215,11 @@ class Manager:
         try:
             row = next(filter(f, values))
             return Student(
-                int(row[STUDENT_NUMBERS]), name, 
-                    row[GROUP_IDS], 
-                    row[STUDENT_TELEGRAM_IDS],
-                    row[STUDENT_SUBJECTS].split(',')
+                int(row[STUDENT_NUMBERS]),
+                name,
+                row[GROUP_IDS],
+                row[STUDENT_TELEGRAM_IDS],
+                row[STUDENT_SUBJECTS].split(","),
             )
         except StopIteration:
             raise StudentNotFound("Не могу найти студента по имени")
@@ -229,10 +233,11 @@ class Manager:
         try:
             row = next(filter(f, values))
             return Student(
-                int(row[STUDENT_NUMBERS]), 
-                row[STUDENT_NAMES], 
-                row[GROUP_IDS], tg_id,
-                row[STUDENT_SUBJECTS].split(',')
+                int(row[STUDENT_NUMBERS]),
+                row[STUDENT_NAMES],
+                row[GROUP_IDS],
+                tg_id,
+                row[STUDENT_SUBJECTS].split(","),
             )
         except StopIteration:
             raise StudentNotFound("Не могу найти студента по telegram id")
@@ -246,22 +251,22 @@ class Manager:
         for row in filter(f, values):
             assignment_values = self.get_values(row[ASSIGNMENT_RANGES])
             toFloat = lambda x: float(x.replace(",", "."))
-            assignment_value = list(map(toFloat, assignment_values[student.number-1]))
-            notes_range, n_row = row[ASSIGNMENT_NOTES_RANGES].split(',')
-            note = self.get_values(notes_range)[student.number-1][int(n_row)]
-            if note == '-':
+            assignment_value = list(map(toFloat, assignment_values[student.number - 1]))
+            notes_range, n_row = row[ASSIGNMENT_NOTES_RANGES].split(",")
+            note = self.get_values(notes_range)[student.number - 1][int(n_row)]
+            if note == "-":
                 note = "Замечаний по работе нет."
             else:
                 note = f"Замечания:\n {note}"
             student.add_assignment(
                 Assignment(
-                    name=row[ASSIGNMENT_NAMES], 
-                    points=assignment_value, 
+                    name=row[ASSIGNMENT_NAMES],
+                    points=assignment_value,
                     weight=toFloat(row[ASSIGNMENT_WEIGHTS]),
                     subject=row[ASSIGNMENT_SUBJECT],
                     allow_to_display=bool(int(row[ASSIGNMENT_ALLOWS])),
                     how_to_display=row[ASSIGNMENT_HOW_TO_DISPLAY],
-                    notes=note
+                    notes=note,
                 )
             )
 
@@ -282,14 +287,14 @@ class Manager:
             row[STUDENT_TELEGRAM_IDS] = tg_id
             self.write_values(values, "StudentList")
             return Student(
-                int(row[STUDENT_NUMBERS]), 
-                row[STUDENT_NAMES], 
-                row[GROUP_IDS], tg_id, 
-                row[STUDENT_SUBJECTS].split(',')
+                int(row[STUDENT_NUMBERS]),
+                row[STUDENT_NAMES],
+                row[GROUP_IDS],
+                tg_id,
+                row[STUDENT_SUBJECTS].split(","),
             )
         except StopIteration:
             raise StudentNotFound("Не могу найти студента по token")
-
 
     def sub_by_tg_id(self, tg_id: str) -> bool:
         """Подписка пользователя по tg_id"""
@@ -299,7 +304,7 @@ class Manager:
         f = lambda row: tg_id == row[STUDENT_TELEGRAM_IDS]
         try:
             row = next(filter(f, values))
-            if row[STUDENT_SUBSCRIPTION] == '1':
+            if row[STUDENT_SUBSCRIPTION] == "1":
                 raise StudentAlreadySubbed("Студент уже подписался")
 
             row[STUDENT_SUBSCRIPTION] = 1
@@ -316,10 +321,10 @@ class Manager:
         f = lambda row: tg_id == row[STUDENT_TELEGRAM_IDS]
         try:
             row = next(filter(f, values))
-            if row[STUDENT_SUBSCRIPTION] == '0':
+            if row[STUDENT_SUBSCRIPTION] == "0":
                 raise StudentAlreadyUnsubbed(
                     "Студент уже не подписан (или никогда не был)"
-                    )
+                )
 
             row[STUDENT_SUBSCRIPTION] = 0
             self.write_values(values, "StudentList")

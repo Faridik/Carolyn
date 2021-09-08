@@ -4,8 +4,7 @@ from werkzeug.exceptions import *
 from manager import *
 import flask
 import logging
-import models
-import time
+import uuid
 
 logging.basicConfig()
 LOG = logging.getLogger(__name__)
@@ -41,11 +40,13 @@ def availability(func):
 def superuser(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        tg_id = flask.request.args.get("tg_id", -1)
-        student: Student = app.db.get_student_by_tg_id(tg_id)
-        if student.number not in SUPER_USER:
-            raise Forbidden(f"Доступ запрещен для студента {student.name}")
-        result = func(student, *args, **kwargs)
+        god_mode = flask.request.args.get("god_mode", False)
+        if god_mode.lower() != "true":
+            tg_id = flask.request.args.get("tg_id", -1)
+            student: Student = app.db.get_student_by_tg_id(tg_id)
+            if student.number not in SUPER_USER:
+                raise Forbidden(f"Доступ запрещен для студента {student.name}")
+        result = func(*args, **kwargs)
         return result
 
     return wrapper
@@ -82,12 +83,30 @@ def grades():
     )
 
 
-@app.route("/broadcast")
+@app.route("/grades/fingerprint")
+@availability
+def fingerprint():
+    """Возвращает оценки в виде хеш-суммы."""
+    tg_id = flask.request.args.get("tg_id")
+    student = app.db.get_student_by_tg_id(tg_id)
+    app.db.set_assignments_for_student(student)
+    return flask.jsonify(
+        dict(
+            fingerprint=uuid.uuid3(uuid.NAMESPACE_DNS, "%s" % student.assignments),
+        )
+    )
+
+
+@app.route("/students")
 @availability
 @superuser
-def broadcast(student):
+def broadcast(*args, **kwargs):
     """Выполняет рассылку студентам."""
-    return flask.jsonify(app.db.get_all_groups_only_sub_students())
+    sub_only = flask.request.args.get("sub_only", False)
+    if sub_only.lower() == "true":
+        return flask.jsonify(app.db.get_all_groups_only_sub_students())
+    else:
+        return flask.jsonify(app.db.get_all_groups())
 
 
 @app.route("/sub")
@@ -97,6 +116,7 @@ def sub():
     is_subbed = app.db.sub_by_tg_id(tg_id)
     return flask.jsonify(dict(is_subbed=is_subbed))
 
+
 @app.route("/unsub")
 @availability
 def unsub():
@@ -105,10 +125,9 @@ def unsub():
     return flask.jsonify(dict(is_unsubbed=is_unsubbed))
 
 
-
 @app.errorhandler(StudentAlreadyAuthed)
 def show_error(err):
-    return flask.jsonify({"error": type(err).__name__, "message": err.message}), 409
+    return flask.jsonify({"error": type(err).__name__, "message": err.message}), 400
 
 
 @app.errorhandler(AnotherStudentAlreadyAuthed)
@@ -120,13 +139,16 @@ def show_error(err):
 def show_error(err):
     return flask.jsonify({"error": type(err).__name__, "message": err.message}), 404
 
+
 @app.errorhandler(StudentAlreadySubbed)
 def show_error(err):
-    return flask.jsonify({"error": type(err).__name__, "message": err.message}), 405
+    return flask.jsonify({"error": type(err).__name__, "message": err.message}), 400
+
 
 @app.errorhandler(StudentAlreadyUnsubbed)
 def show_error(err):
-    return flask.jsonify({"error": type(err).__name__, "message": err.message}), 406
+    return flask.jsonify({"error": type(err).__name__, "message": err.message}), 400
+
 
 @app.errorhandler(BadRequest)
 def show_error(err):
