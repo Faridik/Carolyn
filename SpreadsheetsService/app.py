@@ -96,6 +96,13 @@ def fingerprint():
         )
     )
 
+@app.route("/student")
+@availability
+def student():
+    """Возвращает оценки по id пользователя из телеграма."""
+    tg_id = flask.request.args.get("tg_id")
+    student = app.db.get_student_by_tg_id(tg_id)
+    return flask.jsonify(dict(student=student))
 
 @app.route("/students")
 @availability

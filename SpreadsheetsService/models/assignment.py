@@ -12,8 +12,9 @@ class Assignment(dict):
         weight: float = 1,
         subject: str = None,
         allow_to_display: bool = False,
-        how_to_display: str = "z,1,1",
+        how_to_display: str = "z,10,1",
         notes: str = "Замечаний по работе нет.",
+        deadline: str = "-",
     ):
         self.name = name
         self.subject = subject
@@ -22,6 +23,7 @@ class Assignment(dict):
         self.allow_to_display = allow_to_display
         self.how_to_display = how_to_display
         self.notes = notes
+        self.deadline = deadline
         self.uuid = uuid.uuid3(uuid.NAMESPACE_DNS, f"{name}{subject}")
         dict.__init__(
             self,
@@ -33,6 +35,7 @@ class Assignment(dict):
             allow_to_display=self.allow_to_display,
             how_to_display=self.how_to_display,
             notes=self.notes,
+            deadline=self.deadline,
             uuid=self.uuid,
         )
 

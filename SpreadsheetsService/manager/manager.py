@@ -29,6 +29,8 @@ ASSIGNMENT_RANGES = 5
 ASSIGNMENT_ALLOWS = 6
 ASSIGNMENT_HOW_TO_DISPLAY = 7
 ASSIGNMENT_NOTES_RANGES = 8
+ASSIGNMENT_DEADLINE = 9
+
 TOKEN_FILE = pathlib.Path() / ".secrets" / "token.json"
 CLIENT_SECRET_FILE = pathlib.Path() / ".secrets" / "client_secret.json"
 NON_CACHED_RANGES = ("StudentList",)
@@ -254,10 +256,8 @@ class Manager:
             assignment_value = list(map(toFloat, assignment_values[student.number - 1]))
             notes_range, n_row = row[ASSIGNMENT_NOTES_RANGES].split(",")
             note = self.get_values(notes_range)[student.number - 1][int(n_row)]
-            if note == "-":
-                note = "Замечаний по работе нет."
-            else:
-                note = f"Замечания:\n {note}"
+            note = "Замечаний по работе нет." if note == "-" \
+                else f"Замечания:\n{note}"
             student.add_assignment(
                 Assignment(
                     name=row[ASSIGNMENT_NAMES],
@@ -267,6 +267,7 @@ class Manager:
                     allow_to_display=bool(int(row[ASSIGNMENT_ALLOWS])),
                     how_to_display=row[ASSIGNMENT_HOW_TO_DISPLAY],
                     notes=note,
+                    deadline=row[ASSIGNMENT_DEADLINE],
                 )
             )
 

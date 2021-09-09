@@ -173,6 +173,7 @@ def grades_view(update: Update, context: CallbackContext):
             assignment["points"],
             assignment["how_to_display"],
             assignment["notes"],
+            assignment["deadline"],
         ),
         parse_mode=ParseMode.HTML,
         reply_markup=reply_markup,
@@ -249,7 +250,7 @@ def cancel(update: Update, context: CallbackContext):
 
 
 def sub(update: Update, context: CallbackContext):
-    """Стартовое сообщение (к команде /start)"""
+    """Подписка на обновление оценок"""
 
     user_id = update.message.from_user.id
     username = update.message.from_user.username
@@ -279,7 +280,7 @@ def sub(update: Update, context: CallbackContext):
 
 
 def unsub(update: Update, context: CallbackContext):
-    """Стартовое сообщение (к команде /start)"""
+    """Отписка от обновления оценок"""
 
     user_id = update.message.from_user.id
     username = update.message.from_user.username
@@ -309,6 +310,34 @@ def unsub(update: Update, context: CallbackContext):
 
     msg.edit_text(text=MESSAGES.Unsub.UNSUBBED)
 
+def variant(update: Update, context: CallbackContext):
+    """Проверка своего варианта внутри группы"""
+
+    user_id = update.message.from_user.id
+    username = update.message.from_user.username
+
+    # Длинная операция, сообщим о запущенном процессе.
+    msg = update.message.reply_text(text=MESSAGES.Variant.START)
+
+    try:
+        req = requests.get(
+            f"{HOST}/student",
+            params={"tg_id": user_id},
+        )
+        data = req.json()
+    except requests.exceptions.RequestException:
+        LOG.exception("@{user_id} вызвал: Ошибка подключения к сервису Spreadsheets.")
+        update.message.reply_sticker(MESSAGES.Stickers.DEAD)
+        return
+
+    if req.status_code != 200:
+        LOG.error(f"Ошибка выяснения варианта, у пользователя @{username} {data}")
+        err = data.get("error", "")
+        update.message.reply_text(text=MESSAGES.Variant.failure(err))
+        update.message.reply_sticker(MESSAGES.Stickers.bad())
+        return
+
+    msg.edit_text(text=MESSAGES.Variant.get(data["student"]["number"]))
 
 # ======================================================================= SCHED
 
@@ -388,12 +417,14 @@ def main() -> None:
 
     sub_handler = CommandHandler("sub", sub)
     unsub_handler = CommandHandler("unsub", unsub)
+    variant_handler = CommandHandler("variant", variant)
 
     dispatcher.add_handler(start_handler)
     dispatcher.add_handler(grades_handler)
     dispatcher.add_handler(broadcast_handler)
     dispatcher.add_handler(sub_handler)
     dispatcher.add_handler(unsub_handler)
+    dispatcher.add_handler(variant_handler)
 
     # Начало работы бота
     updater.start_polling()

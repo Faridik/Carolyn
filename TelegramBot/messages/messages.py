@@ -29,7 +29,8 @@ class Messages:
         TIMEOUT = "🕛 Время запроса вышло"
 
         @staticmethod
-        def get(name: str, assignment: list, how_to_display: str, notes: str):
+        def get(name: str, assignment: list, how_to_display: str, 
+                notes: str, deadline: str):
             is_float, n_cols, n_rows = how_to_display.split(",")
             n_cols, n_rows = int(n_cols), int(n_rows)
             summary = f"<b>{name}</b>:\n"
@@ -48,7 +49,9 @@ class Messages:
                         + "\n"
                     )
                 summary += f"Σ: {to_str(sum(assignment))}\n"
-            summary += f"\n{notes}"
+            if deadline != "-":
+                summary += f"\n🕚 Дедлайн: {deadline}\n"
+            summary += f"\n📝 {notes}"
             return summary
 
         @staticmethod
@@ -78,9 +81,24 @@ class Messages:
         @staticmethod
         def failure(err: str):
             cases = {
-                "StudentNotFound": "⛔ Для отпидски от уведомлений нужно зарегистрироваться."
+                "StudentNotFound": "⛔ Для отписки от уведомлений нужно зарегистрироваться."
                 + "Команда /start поможет с регистрацией",
                 "StudentAlreadyUnsubbed": "💁‍♀️ Подписка на уведомления не была оформлена или уже отменена",
+            }
+            return cases.get(err, "😟 Возникли неполадки")
+
+    class Variant:
+        START = "👀 Узнаю вариант..."
+
+        @staticmethod
+        def get(number: int):
+            return f"🔢 Твой вариант: {number}"
+
+        @staticmethod
+        def failure(err: str):
+            cases = {
+                "StudentNotFound": "⛔ Чтобы узнать свой вариант, нужно зарегистрироваться."
+                + "Команда /start поможет с регистрацией",
             }
             return cases.get(err, "😟 Возникли неполадки")
 
