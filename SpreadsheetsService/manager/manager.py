@@ -47,8 +47,6 @@ def timed_lru_cache(seconds: int, maxsize: int = 128):
             if datetime.utcnow() >= func.expiration:
                 func.cache_clear()
                 func.expiration = datetime.utcnow() + func.lifetime
-            # if args[1] in NON_CACHED_RANGES:
-            #     func.cache_clear()
             print(*args)
             return func(*args, **kwargs)
 
@@ -118,10 +116,17 @@ class Manager:
         service = build("sheets", "v4", credentials=creds)
         self.sheet = service.spreadsheets()
 
-    @timed_lru_cache(seconds=150)
-    def get_values(
-        self, range_name: str = "StudentList"
-    ) -> list:  # TODO: change subject
+    def get_values(self, range_name: str = "StudentList") -> list:
+        if range_name in NON_CACHED_RANGES:
+            return self._get_values(range_name)
+        else:
+            return self._cached_get_values(range_name)
+
+    @timed_lru_cache(minutes=25)
+    def _cached_get_values(self, range_name):
+        return self._get_values(range_name)
+
+    def _get_values(self, range_name: str = "StudentList") -> list:
         """Получить значения с таблицы.
 
         Returns:
@@ -256,8 +261,7 @@ class Manager:
             assignment_value = list(map(toFloat, assignment_values[student.number - 1]))
             notes_range, n_row = row[ASSIGNMENT_NOTES_RANGES].split(",")
             note = self.get_values(notes_range)[student.number - 1][int(n_row)]
-            note = "Замечаний по работе нет." if note == "-" \
-                else f"Замечания:\n{note}"
+            note = "Замечаний по работе нет." if note == "-" else f"Замечания:\n{note}"
             student.add_assignment(
                 Assignment(
                     name=row[ASSIGNMENT_NAMES],

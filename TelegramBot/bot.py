@@ -11,6 +11,7 @@ from telegram import (
     Update,
     ParseMode,
 )
+from telegram import message
 from telegram.ext import (
     CallbackContext,
     CommandHandler,
@@ -25,10 +26,12 @@ from telegram.ext.callbackqueryhandler import CallbackQueryHandler
 from utils.inline_keyboard import *
 from messages import Messages
 
-TOKEN = Path(".secrets/bot_token.txt").read_text()
-MESSAGES = Messages()
+ADMIN = "admin"
 HOST = "http://carolyn-spreadsheets:5000"
-SUB_TIME_DELTA = datetime.timedelta(minutes=15)
+MESSAGES = Messages()
+SUB_TIME_DELTA = datetime.timedelta(minutes=30)
+TOKEN = Path(".secrets/bot_token.txt").read_text()
+DEV_CHAT = -507530583  # ID канала где собираются логи
 
 BROADCAST_MESSAGE, BROADCAST_PUBLISH_DONE = range(2)
 GRADES_ASSNT, GRADES_VIEW = range(2)
@@ -88,6 +91,7 @@ def grades_start(update: Update, context: CallbackContext):
     """
     user_id = update.message.from_user.id
     start = time.monotonic()
+
     # Длинная операция, сообщим о запущенном процессе.
     look_msg = update.message.reply_html(MESSAGES.Assignments.START)
 
@@ -97,6 +101,12 @@ def grades_start(update: Update, context: CallbackContext):
         LOG.exception("Failed to get grades.")
         update.message.reply_sticker(MESSAGES.Stickers.DEAD)
         return ConversationHandler.END
+
+    # При инициализации бота словарь отсутствует
+    if "fingerprints" not in context.bot_data:
+        context.bot_data["fingerprints"] = defaultdict(str)
+
+    context.bot_data["fingerprints"][user_id] = data["fingerprint"]
 
     context.user_data["subjects"] = data["subjects"]
     context.user_data["assignments"] = data["assignments"]
@@ -228,17 +238,51 @@ def publish_message(update: Update, context: CallbackContext):
 
 def publish_done(update: Update, context: CallbackContext):
     """Рассылка выполняется здесь."""
-    message = f"📣 {update.message.text}\n<i>— {update.message.from_user.name}</i>"
+
+    def send_message(chat_id: int, message: telegram.Message):
+        txt = message.text if message.text else message.caption
+        txt = "" if not txt else txt
+        txt = f"📣 {txt}\n<i>— {message.from_user.name}</i>"
+
+        if message.document:
+            context.bot.send_document(
+                chat_id=chat_id,
+                caption=txt,
+                parse_mode="HTML",
+                document=message.document,
+            )
+        elif message.photo:
+            file = message.photo[-1]
+            context.bot.send_photo(
+                chat_id=chat_id, caption=txt, parse_mode="HTML", photo=file
+            )
+        elif message.animation:
+            context.bot.send_animation(
+                chat_id=chat_id,
+                caption=txt,
+                parse_mode="HTML",
+                animation=message.animation,
+            )
+        else:
+            context.bot.send_message(chat_id=chat_id, text=txt, parse_mode="HTML")
+
     group = context.user_data["broadcast_to"]
     send_status = update.message.reply_text("0%")
-    students = context.bot_data["groups"][group]["students"]
+    try:
+        students = context.bot_data["groups"][group]["students"]
+    except:
+        LOG.exception(
+            "Не получилось взять студента с группой, %s, группы %s",
+            group,
+            context.bot_data["groups"],
+        )
     for i, student in enumerate(students):
         progress = i / len(students) * 100
         if student["tg_id"]:
-            context.bot.send_message(
-                chat_id=student["tg_id"], text=message, parse_mode="HTML"
-            )
+            send_message(student["tg_id"], update.message)
         send_status.edit_text(f"{progress:.1f}% 🏃‍♂️ Рассылка")
+
+    send_message(DEV_CHAT, update.message)
     send_status.edit_text("100% 👍 Все сообщения разосланы")
     return ConversationHandler.END
 
@@ -288,8 +332,6 @@ def unsub(update: Update, context: CallbackContext):
     # Длинная операция, сообщим о запущенном процессе.
     msg = update.message.reply_text(text=MESSAGES.Unsub.START)
 
-    # LOG.info(f"Unsubcripting {user_id}")
-
     try:
         req = requests.get(
             f"{HOST}/unsub",
@@ -309,6 +351,7 @@ def unsub(update: Update, context: CallbackContext):
         return
 
     msg.edit_text(text=MESSAGES.Unsub.UNSUBBED)
+
 
 def variant(update: Update, context: CallbackContext):
     """Проверка своего варианта внутри группы"""
@@ -338,6 +381,14 @@ def variant(update: Update, context: CallbackContext):
         return
 
     msg.edit_text(text=MESSAGES.Variant.get(data["student"]["number"]))
+
+
+def error(update: Update, context: CallbackContext):
+    LOG.error(msg="Exception while handling an update:", exc_info=context.error)
+    update.message.reply_text("Ой, кажется у меня %s" % repr(context.error))
+    update.message.reply_sticker(MESSAGES.Stickers.DEAD)
+    return ConversationHandler.END
+
 
 # ======================================================================= SCHED
 
@@ -410,7 +461,9 @@ def main() -> None:
         entry_points=[CommandHandler("broadcast", broadcast)],
         states={
             BROADCAST_MESSAGE: [MessageHandler(Filters.text, publish_message)],
-            BROADCAST_PUBLISH_DONE: [MessageHandler(Filters.text, publish_done)],
+            BROADCAST_PUBLISH_DONE: [
+                MessageHandler(Filters.all & ~Filters.command, publish_done)
+            ],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )
@@ -425,6 +478,7 @@ def main() -> None:
     dispatcher.add_handler(sub_handler)
     dispatcher.add_handler(unsub_handler)
     dispatcher.add_handler(variant_handler)
+    dispatcher.add_error_handler(error)
 
     # Начало работы бота
     updater.start_polling()

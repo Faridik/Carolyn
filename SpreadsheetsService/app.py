@@ -4,12 +4,11 @@ from werkzeug.exceptions import *
 from manager import *
 import flask
 import logging
-import uuid
 
 logging.basicConfig()
 LOG = logging.getLogger(__name__)
 LOG.setLevel(logging.DEBUG)
-SUPER_USER = (420, 228)
+ADMIN = "admin"
 
 app = flask.Flask(__name__)
 app.db = None
@@ -40,11 +39,11 @@ def availability(func):
 def superuser(func):
     @wraps(func)
     def wrapper(*args, **kwargs):
-        god_mode = flask.request.args.get("god_mode", False)
+        god_mode = flask.request.args.get("god_mode", str(False))
         if god_mode.lower() != "true":
             tg_id = flask.request.args.get("tg_id", -1)
             student: Student = app.db.get_student_by_tg_id(tg_id)
-            if student.number not in SUPER_USER:
+            if student.group_id != ADMIN:
                 raise Forbidden(f"Доступ запрещен для студента {student.name}")
         result = func(*args, **kwargs)
         return result
@@ -79,6 +78,7 @@ def grades():
         dict(
             subjects=student.subjects,
             assignments=student.assignments,
+            fingerprint=student.fingerprint,
         )
     )
 
@@ -92,9 +92,10 @@ def fingerprint():
     app.db.set_assignments_for_student(student)
     return flask.jsonify(
         dict(
-            fingerprint=uuid.uuid3(uuid.NAMESPACE_DNS, "%s" % student.assignments),
+            fingerprint=student.fingerprint,
         )
     )
+
 
 @app.route("/student")
 @availability
@@ -104,12 +105,13 @@ def student():
     student = app.db.get_student_by_tg_id(tg_id)
     return flask.jsonify(dict(student=student))
 
+
 @app.route("/students")
 @availability
 @superuser
 def broadcast(*args, **kwargs):
     """Выполняет рассылку студентам."""
-    sub_only = flask.request.args.get("sub_only", False)
+    sub_only = flask.request.args.get("sub_only", str(False))
     if sub_only.lower() == "true":
         return flask.jsonify(app.db.get_all_groups_only_sub_students())
     else:

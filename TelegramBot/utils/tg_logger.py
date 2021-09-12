@@ -21,7 +21,7 @@ class TgLogger(logging.Logger):
     ```
     """
 
-    CHAT_LOG_ID = -507530583  # ID канала где собираются логи
+    DEV_CHAT = -507530583  # ID канала где собираются логи
 
     def __init__(self, name, level=logging.NOTSET):
         self._bot = None
@@ -43,7 +43,7 @@ class TgLogger(logging.Logger):
     ):
         if self._bot is not None:
             txt = f"{emoji} {msg};"
-            self._bot.send_message(chat_id=self.CHAT_LOG_ID, text=txt)
+            self._bot.send_message(chat_id=self.DEV_CHAT, text=txt)
 
     def warning(self, msg: Any, *args: Any, **kwargs: Any) -> None:
         self._log_to_telegram(msg=msg, emoji="⚠", *args)
