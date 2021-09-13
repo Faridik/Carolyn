@@ -167,6 +167,7 @@ def show_error(err):
 # Любая другая ошибка вылетит вот здесь
 @app.errorhandler(Exception)
 def show_error(err):
+    LOG.exception("Service malfunction")
     return flask.jsonify({"error": type(err).__name__, "message": str(err)}), 500
 
 
