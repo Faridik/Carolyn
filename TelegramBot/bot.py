@@ -90,17 +90,28 @@ def grades_start(update: Update, context: CallbackContext):
     Обновляет текст сообщения и дает клавиатуру с выбором дисциплины.
     """
     user_id = update.message.from_user.id
+    username = update.message.from_user.username
     start = time.monotonic()
 
     # Длинная операция, сообщим о запущенном процессе.
     look_msg = update.message.reply_html(MESSAGES.Assignments.START)
 
     try:
-        data = requests.get(f"{HOST}/grades", params={"tg_id": user_id}).json()
+        req = requests.get(f"{HOST}/grades", params={"tg_id": user_id})
+        data = req.json()
     except:
         LOG.exception("Failed to get grades.")
         update.message.reply_sticker(MESSAGES.Stickers.DEAD)
         return ConversationHandler.END
+
+    if req.status_code != 200:
+        LOG.error(f"Ошибка получения оценок у пользователя @{username} {data}")
+        err = data.get("error", "")
+        update.message.reply_text(text=MESSAGES.Assignments.failure(err))
+        diff = time.monotonic() - start
+        look_msg.edit_text(MESSAGES.Assignments.timeit(diff))
+        update.message.reply_sticker(MESSAGES.Stickers.bad())
+        return
 
     # При инициализации бота словарь отсутствует
     if "fingerprints" not in context.bot_data:
