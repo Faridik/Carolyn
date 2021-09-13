@@ -3,6 +3,7 @@ version: "3.9"
 services:
   spreadsheets:
     container_name: "carolyn-spreadsheets"
+    restart: always
     build: ./SpreadsheetsService
     ports:
       - "5000:5000"
@@ -12,6 +13,7 @@ services:
       - ./SpreadsheetsService:/app
   telegrambot:
     container_name: "carolyn-telegrambot"
+    restart: always
     build: ./TelegramBot
     volumes:
       - ./TelegramBot:/app

@@ -84,7 +84,7 @@ class Manager:
 
     def __init__(
         self,
-        spreadsheet_id: str = "1GKfmLwDVGjcpXFQAUyxM4RMQ5Nx6HAZ5VWenz2z--d0",
+        spreadsheet_id: str = "1FT89H-W_mH-G6MJ_EyWDQ0FT4woJisOC0d4HzulMZ4g",
         scopes: list = [
             "https://www.googleapis.com/auth/spreadsheets.readonly",
             "https://www.googleapis.com/auth/spreadsheets",
@@ -122,7 +122,7 @@ class Manager:
         else:
             return self._cached_get_values(range_name)
 
-    @timed_lru_cache(minutes=25)
+    @timed_lru_cache(seconds=25*60)
     def _cached_get_values(self, range_name):
         return self._get_values(range_name)
 
