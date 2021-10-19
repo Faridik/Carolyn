@@ -47,7 +47,6 @@ def timed_lru_cache(seconds: int, maxsize: int = 128):
             if datetime.utcnow() >= func.expiration:
                 func.cache_clear()
                 func.expiration = datetime.utcnow() + func.lifetime
-            print(*args)
             return func(*args, **kwargs)
 
         return wrapped_func
@@ -122,7 +121,7 @@ class Manager:
         else:
             return self._cached_get_values(range_name)
 
-    @timed_lru_cache(seconds=25*60)
+    @timed_lru_cache(seconds=25 * 60)
     def _cached_get_values(self, range_name):
         return self._get_values(range_name)
 
@@ -174,43 +173,46 @@ class Manager:
 
         return group
 
-    def get_all_groups(self) -> list:
+    def get_all_groups(self, include_assingments: bool = False) -> list:
         """Получить список всех групп."""
         values = self.get_values()
         groups = defaultdict(lambda: Group("0"))
         for row in values:
             groups[row[GROUP_IDS]].group_id = row[GROUP_IDS]
-            groups[row[GROUP_IDS]].add_student(
-                Student(
-                    number=int(row[STUDENT_NUMBERS]),
-                    name=row[STUDENT_NAMES],
-                    group_id=row[GROUP_IDS],
-                    tg_id=row[STUDENT_TELEGRAM_IDS],
-                    subjects=row[STUDENT_SUBJECTS].split(","),
-                    is_subbed=bool(int(row[STUDENT_SUBSCRIPTION])),
-                )
+            student = Student(
+                number=int(row[STUDENT_NUMBERS]),
+                name=row[STUDENT_NAMES],
+                group_id=row[GROUP_IDS],
+                tg_id=row[STUDENT_TELEGRAM_IDS],
+                subjects=row[STUDENT_SUBJECTS].split(","),
+                is_subbed=bool(int(row[STUDENT_SUBSCRIPTION])),
             )
+            if include_assingments:
+                self.set_assignments_for_student(student)
+            groups[row[GROUP_IDS]].add_student(student)
 
         return groups
 
-    def get_all_groups_only_sub_students(self) -> list:
+    def get_all_groups_only_sub_students(
+        self, include_assingments: bool = False
+    ) -> list:
         """Получить список всех групп."""
         values = self.get_values()
         groups = defaultdict(lambda: Group("0"))
         f = lambda row: row[STUDENT_SUBSCRIPTION] == "1"
         for row in filter(f, values):
             groups[row[GROUP_IDS]].group_id = row[GROUP_IDS]
-            groups[row[GROUP_IDS]].add_student(
-                Student(
-                    number=int(row[STUDENT_NUMBERS]),
-                    name=row[STUDENT_NAMES],
-                    group_id=row[GROUP_IDS],
-                    tg_id=row[STUDENT_TELEGRAM_IDS],
-                    subjects=row[STUDENT_SUBJECTS].split(","),
-                    is_subbed=bool(int(row[STUDENT_SUBSCRIPTION])),
-                )
+            student = Student(
+                number=int(row[STUDENT_NUMBERS]),
+                name=row[STUDENT_NAMES],
+                group_id=row[GROUP_IDS],
+                tg_id=row[STUDENT_TELEGRAM_IDS],
+                subjects=row[STUDENT_SUBJECTS].split(","),
+                is_subbed=bool(int(row[STUDENT_SUBSCRIPTION])),
             )
-
+            if include_assingments:
+                self.set_assignments_for_student(student)
+            groups[row[GROUP_IDS]].add_student(student)
         return groups
 
     def get_student_by_name(self, name: str) -> Student:

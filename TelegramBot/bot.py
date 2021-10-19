@@ -396,7 +396,8 @@ def variant(update: Update, context: CallbackContext):
 
 def error(update: Update, context: CallbackContext):
     LOG.error(msg="Exception while handling an update:", exc_info=context.error)
-    update.message.reply_text("Ой, кажется у меня %s" % repr(context.error))
+    if context.error is not None:
+        update.message.reply_text("Ой, кажется у меня %s" % repr(context.error))
     update.message.reply_sticker(MESSAGES.Stickers.DEAD)
     return ConversationHandler.END
 
@@ -407,18 +408,21 @@ def error(update: Update, context: CallbackContext):
 def grades_checker(context: CallbackContext):
     """Задача по проверке оценок.
 
-    Пробегает по списку подписавшихся и для каждого студента запрашивает
-    `/grades/fingerprint`. Отпечаток (fingerprint) - текстовая строка
-    захешированных оценок. При изменении оценок, меняется и их хеш. Бот с каждым
-    вызовом задачи запоминает эти хеши всех студентов и сверяет их. Если вдруг
-    несовпадение, то значит, что данные об оценках были изменены.
+    Запрашивает список подписавшихся вместе с подключенными домашками. У
+    каждого студента проверяет отпечаток. Отпечаток (fingerprint) - текстовая
+    строка захешированных оценок. При изменении оценок, меняется и их хеш. Бот с
+    каждым вызовом задачи запоминает эти хеши всех студентов и сверяет их. Если
+    вдруг несовпадение, то значит, что данные об оценках были изменены.
 
     Это простой и универсальный способ смотреть изменения, но он не дает инфы о
     том, в каком задании появилась новая оценка.
 
     """
 
-    r = requests.get(f"{HOST}/students", params={"god_mode": True, "sub_only": True})
+    r = requests.get(
+        f"{HOST}/students",
+        params={"god_mode": True, "sub_only": True, "include_assignments": True},
+    )
     data = r.json()
     context.bot_data["groups"] = data
 
@@ -429,8 +433,7 @@ def grades_checker(context: CallbackContext):
     for group in data.values():
         for student in group["students"]:
             tg_id = student["tg_id"]
-            r = requests.get(f"{HOST}/grades/fingerprint", params={"tg_id": tg_id})
-            fingerprint = r.json().get("fingerprint", "")
+            fingerprint = student.get("fingerprint", "")
             old_fingerprint = context.bot_data["fingerprints"][tg_id]
             # При инициализации у старого отпечатка ещё не установлено значение.
             # Там находится пустая строка, поэтому нужна дополн. проверка.
