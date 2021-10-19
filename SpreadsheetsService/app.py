@@ -109,13 +109,17 @@ def student():
 @app.route("/students")
 @availability
 @superuser
-def broadcast(*args, **kwargs):
+def students(*args, **kwargs):
     """Выполняет рассылку студентам."""
     sub_only = flask.request.args.get("sub_only", str(False))
+    include_assignments = flask.request.args.get("include_assignments", str(False))
+    include_assignments = include_assignments.lower() == "true"
     if sub_only.lower() == "true":
-        return flask.jsonify(app.db.get_all_groups_only_sub_students())
+        return flask.jsonify(
+            app.db.get_all_groups_only_sub_students(include_assignments)
+        )
     else:
-        return flask.jsonify(app.db.get_all_groups())
+        return flask.jsonify(app.db.get_all_groups(include_assignments))
 
 
 @app.route("/sub")
