@@ -14,11 +14,12 @@ jobs:
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Connect to Yandex Cloud on my own
-      - run: set -eu
-      - run: mkdir "$HOME/.ssh"
-      - run: echo "${{ secrets.key }}" > "$HOME/.ssh/key"
-      - run: chmod 600 "$HOME/.ssh/key"
-      - run: ssh -i $HOME/.ssh/key carolyn@{{secrets.HOST}} -o StrictHostKeyChecking=no 'ls -al'
+      - run: |
+          set -eu
+          mkdir "$HOME/.ssh"
+          echo "${{ secrets.key }}" > "$HOME/.ssh/key"
+          chmod 600 "$HOME/.ssh/key"
+          ssh -i $HOME/.ssh/key carolyn@{{secrets.HOST}} -o StrictHostKeyChecking=no 'ls -al'
 
       - name: Connect to Yandex Cloud
         uses: appleboy/ssh-action@master
