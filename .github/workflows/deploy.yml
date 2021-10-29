@@ -13,19 +13,28 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      - name: Connect to Yandex Cloud on my own
-        run: |
-          echo "${{ secrets.key }}" > "$HOME/key"
-          chmod 600 "$HOME/key"
-          ssh -i $HOME/key carolyn@${{ secrets.HOST }} -o StrictHostKeyChecking=no 'ls -al'
+      # - name: Connect to Yandex Cloud on my own
+      #   run: |
+      #     echo "${{ secrets.key }}" > "$HOME/key"
+      #     chmod 600 "$HOME/key"
+      #     ssh -i $HOME/key carolyn@${{ secrets.HOST }} -o StrictHostKeyChecking=no 'ls -al'
 
-      - name: Connect to Yandex Cloud
-        uses: appleboy/ssh-action@master
+      - name: webfactory/ssh-agent
+        uses: webfactory/ssh-agent@v0.5.3
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.KEY }}
-          port: ${{ secrets.PORT }}
-          script: |
-            whoami
-            ls -al
+          ssh-private-key: ${{ secrets.KEY }}
+
+      - run: |
+          whois
+          ls -laF
+
+      # - name: Connect to Yandex Cloud
+      #   uses: appleboy/ssh-action@master
+      #   with:
+      #     host: ${{ secrets.HOST }}
+      #     username: ${{ secrets.USERNAME }}
+      #     key: ${{ secrets.KEY }}
+      #     port: ${{ secrets.PORT }}
+      #     script: |
+      #       whoami
+      #       ls -al
