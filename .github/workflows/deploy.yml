@@ -25,7 +25,7 @@ jobs:
           ssh-private-key: ${{ secrets.KEY }}
 
       - run: |
-          whois
+          whoami
           ls -laF
 
       # - name: Connect to Yandex Cloud
