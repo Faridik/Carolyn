@@ -22,4 +22,4 @@ jobs:
       # Runs a set of commands using the runners shell
       - name: Connect to Yandex Cloud SSH
         run: |
-          ssh
+          ls
