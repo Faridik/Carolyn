@@ -16,8 +16,8 @@ jobs:
       - name: Connect to Yandex Cloud on my own
         run: |
           echo "${{ secrets.key }}" > "$HOME/key"
-          chmod 600 "$HOME/.ssh/key"
-          ssh -i $HOME/.ssh/key carolyn@${{ secrets.HOST }} -o StrictHostKeyChecking=no 'ls -al'
+          chmod 600 "$HOME/key"
+          ssh -i $HOME/key carolyn@${{ secrets.HOST }} -o StrictHostKeyChecking=no 'ls -al'
 
       - name: Connect to Yandex Cloud
         uses: appleboy/ssh-action@master
