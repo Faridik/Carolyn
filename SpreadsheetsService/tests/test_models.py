@@ -35,12 +35,12 @@ STUDENTS = (
 
 class TestStudent:
     def test_init(self):
-        student = Student(1, "Фарид Михайлов")
+        student = Student(1, "Фарид Михайлов", "42")
         assert student.name == "Фарид Михайлов"
         assert student.number == 1
 
     def test_student_assignments(self):
-        student = Student(1, "Фарид Михайлов")
+        student = Student(1, "Фарид Михайлов", "42")
 
         ass = [Assignment(weight, values) for weight, values in ASSIGNMENTS]
         for a in ass:
@@ -52,9 +52,10 @@ class TestStudent:
 class TestGroup:
     @staticmethod
     def init_group():
+        group_id = 5374
         group = Group(5374)
         for el in STUDENTS:
-            student = Student(el[0], el[1])
+            student = Student(el[0], el[1], group_id)
             group.add_student(student)
         return group
 
@@ -72,8 +73,3 @@ class TestGroup:
 
         students = group.find_students("Йгбо")
         assert len(students) == 2
-
-    def test_top(self):
-        group = self.init_group()
-
-        group.top(5)
