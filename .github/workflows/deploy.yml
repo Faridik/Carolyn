@@ -19,7 +19,7 @@ jobs:
           mkdir "$HOME/.ssh"
           echo "${{ secrets.key }}" > "$HOME/.ssh/key"
           chmod 600 "$HOME/.ssh/key"
-          ssh -i $HOME/.ssh/key carolyn@{{secrets.HOST}} -o StrictHostKeyChecking=no 'ls -al'
+          ssh -i $HOME/.ssh/key carolyn@${{ secrets.HOST }} -o StrictHostKeyChecking=no 'ls -al'
 
       - name: Connect to Yandex Cloud
         uses: appleboy/ssh-action@master
