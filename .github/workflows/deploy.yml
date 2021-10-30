@@ -23,22 +23,12 @@ jobs:
           echo "${{ secrets.key }}" > "$HOME/key"
           chmod 600 "$HOME/key"
 
-      - name: Connect to the Yandex Cloud
+      - name: Pull repo and restart Docker containers
         run:
           ssh -i $HOME/key carolyn@${{ secrets.HOST }} -o StrictHostKeyChecking=no
           '
           cd Carolyn &&
           git pull &&
-
+          docker-compose down &&
+          docker-compose up -d
           '
-
-      - name: Connect to Yandex Cloud
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.KEY }}
-          port: ${{ secrets.PORT }}
-          script: |
-            whoami
-            ls -laF
