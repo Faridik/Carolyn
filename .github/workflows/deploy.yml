@@ -18,23 +18,11 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.KEY }}
 
-      - run: |
-          whoami
-          ls -laF
-
-      - name: Connect to Yandex Cloud on my own
+      - name: Set up keys for Yandex Cloud
         run: |
           echo "${{ secrets.key }}" > "$HOME/key"
           chmod 600 "$HOME/key"
-          ssh -i $HOME/key carolyn@${{ secrets.HOST }} -o StrictHostKeyChecking=no 'ls -al'
 
-      - name: Connect to Yandex Cloud
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.KEY }}
-          port: ${{ secrets.PORT }}
-          script: |
-            whoami
-            ls -laF
+      - name: Connect to the Yandex Cloud
+          ssh -i $HOME/key carolyn@${{ secrets.HOST }} -o StrictHostKeyChecking=no
+          ls -laF
