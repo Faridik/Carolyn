@@ -24,9 +24,13 @@ jobs:
           chmod 600 "$HOME/key"
 
       - name: Connect to the Yandex Cloud
-        run: |
+        run:
           ssh -i $HOME/key carolyn@${{ secrets.HOST }} -o StrictHostKeyChecking=no
-          ls -laF
+          '
+          cd Carolyn &&
+          git pull &&
+
+          '
 
       - name: Connect to Yandex Cloud
         uses: appleboy/ssh-action@master
