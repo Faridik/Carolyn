@@ -29,8 +29,9 @@ class Messages:
         TIMEOUT = "🕛 Время запроса вышло"
 
         @staticmethod
-        def get(name: str, assignment: list, how_to_display: str, 
-                notes: str, deadline: str):
+        def get(
+            name: str, assignment: list, how_to_display: str, notes: str, deadline: str
+        ):
             is_float, n_cols, n_rows = how_to_display.split(",")
             n_cols, n_rows = int(n_cols), int(n_rows)
             summary = f"<b>{name}</b>:\n"
@@ -109,6 +110,11 @@ class Messages:
                 + "Команда /start поможет с регистрацией",
             }
             return cases.get(err, "😟 Возникли неполадки")
+
+    class Deploy:
+        @staticmethod
+        def about(commit_id: str, git_describe):
+            return f"ℹ️ Версия сборки:\n<a href='https://github.com/Faridik/Carolyn/commit/{commit_id}'>{git_describe}</a>"
 
     class Spreadsheets:
         pass

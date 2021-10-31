@@ -7,12 +7,13 @@ services:
     build: ./SpreadsheetsService
     ports:
       - "5000:5000"
-    environment:
-      SECRETKEY: "HELLO-WORLD-@21XX 15AF"
     volumes:
       - ./SpreadsheetsService:/app
   telegrambot:
     container_name: "carolyn-telegrambot"
+    environment:
+      CAROLYN_DEPLOY_ID: ${CAROLYN_DEPLOY_ID}
+      CAROLYN_DEPLOY_VERSION: ${CAROLYN_DEPLOY_VERSION}
     restart: always
     build: ./TelegramBot
     volumes:
