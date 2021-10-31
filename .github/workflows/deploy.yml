@@ -1,17 +1,13 @@
 name: deploy-to-Yandex-Cloud
 
-# Controls when the workflow will run
 on:
   workflow_dispatch:
+  release:
+    types: [published]
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
   deploy:
-    # The type of runner that the job will run on
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: webfactory/ssh-agent
         uses: webfactory/ssh-agent@v0.5.3
@@ -23,12 +19,13 @@ jobs:
           echo "${{ secrets.key }}" > "$HOME/key"
           chmod 600 "$HOME/key"
 
-      - name: Pull repo and restart Docker containers
+      - name: Restart Bot at Yandex Cloud
         run:
           ssh -i $HOME/key carolyn@${{ secrets.HOST }} -o StrictHostKeyChecking=no
           '
           cd Carolyn &&
           git pull &&
+          export CAROLYN_DEPLOY_INFO=$(git describe --always)
           docker-compose down &&
           docker-compose up -d
           '

@@ -4,6 +4,7 @@ import logging
 import requests
 import time
 import datetime
+import os
 
 import telegram
 from telegram import (
@@ -394,9 +395,15 @@ def variant(update: Update, context: CallbackContext):
     msg.edit_text(text=MESSAGES.Variant.get(data["student"]["number"]))
 
 
+def about(update: Update, context: CallbackContext):
+    """Получить инфу о развертывании бота."""
+    deploy_info = os.environ.get("CAROLYN_DEPLOY_INFO")
+    update.message.reply_html(MESSAGES.Deploy.about(deploy_info))
+
+
 def error(update: Update, context: CallbackContext):
     LOG.error(msg="Exception while handling an update:", exc_info=context.error)
-    if context.error is not None:
+    if context.error is not None and update is not None:
         update.message.reply_text("Ой, кажется у меня %s" % repr(context.error))
     update.message.reply_sticker(MESSAGES.Stickers.DEAD)
     return ConversationHandler.END
@@ -485,6 +492,7 @@ def main() -> None:
     sub_handler = CommandHandler("sub", sub)
     unsub_handler = CommandHandler("unsub", unsub)
     variant_handler = CommandHandler("variant", variant)
+    about_handler = CommandHandler("about", about)
 
     dispatcher.add_handler(start_handler)
     dispatcher.add_handler(grades_handler)
@@ -492,6 +500,7 @@ def main() -> None:
     dispatcher.add_handler(sub_handler)
     dispatcher.add_handler(unsub_handler)
     dispatcher.add_handler(variant_handler)
+    dispatcher.add_handler(about_handler)
     dispatcher.add_error_handler(error)
 
     # Начало работы бота
