@@ -19,7 +19,7 @@ jobs:
           echo "${{ secrets.key }}" > "$HOME/key"
           chmod 600 "$HOME/key"
 
-      - name: Restart Bot at Yandex Cloud
+      - name: Deploy bot at Yandex Cloud
         run:
           ssh -i $HOME/key carolyn@${{ secrets.HOST }} -o StrictHostKeyChecking=no
           '
