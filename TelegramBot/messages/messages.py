@@ -113,8 +113,8 @@ class Messages:
 
     class Deploy:
         @staticmethod
-        def about(commit_id: str):
-            return f"ℹ️ Информация о сборке:\n<a href='https://github.com/Faridik/Carolyn/commit/{commit_id}'>{commit_id:7}</a>"
+        def about(commit_id: str, git_describe):
+            return f"ℹ️ Версия сборки:\n<a href='https://github.com/Faridik/Carolyn/commit/{commit_id}'>{git_describe}</a>"
 
     class Spreadsheets:
         pass

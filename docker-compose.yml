@@ -12,7 +12,8 @@ services:
   telegrambot:
     container_name: "carolyn-telegrambot"
     environment:
-      - CAROLYN_DEPLOY_INFO
+      - CAROLYN_DEPLOY_ID
+      - CAROLYN_DEPLOY_VERSION
     restart: always
     build: ./TelegramBot
     volumes:

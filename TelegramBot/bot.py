@@ -397,8 +397,9 @@ def variant(update: Update, context: CallbackContext):
 
 def about(update: Update, context: CallbackContext):
     """Получить инфу о развертывании бота."""
-    deploy_info = os.environ.get("CAROLYN_DEPLOY_INFO", "")
-    update.message.reply_html(MESSAGES.Deploy.about(deploy_info))
+    commit_id = os.environ.get("CAROLYN_DEPLOY_ID", "")
+    verison = os.environ.get("CAROLYN_DEPLOY_VERSION", "")
+    update.message.reply_html(MESSAGES.Deploy.about(commit_id, verison))
 
 
 def error(update: Update, context: CallbackContext):
