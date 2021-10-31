@@ -397,7 +397,7 @@ def variant(update: Update, context: CallbackContext):
 
 def about(update: Update, context: CallbackContext):
     """Получить инфу о развертывании бота."""
-    deploy_info = os.environ.get("CAROLYN_DEPLOY_INFO")
+    deploy_info = os.environ.get("CAROLYN_DEPLOY_INFO", "")
     update.message.reply_html(MESSAGES.Deploy.about(deploy_info))
 
 
