@@ -25,7 +25,7 @@ jobs:
           '
           cd Carolyn &&
           git pull &&
-          export CAROLYN_DEPLOY_INFO=$(git describe --always) &&
+          export CAROLYN_DEPLOY_INFO="$(git rev-parse HEAD)" &&
           docker-compose down &&
           docker-compose up -d
           '
