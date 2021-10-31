@@ -28,7 +28,6 @@ jobs:
           export CAROLYN_DEPLOY_ID="$(git rev-parse HEAD)" &&
           export CAROLYN_DEPLOY_VERSION="$(git describe --tags)" &&
           echo "$CAROLYN_DEPLOY_VERSION, $CAROLYN_DEPLOY_ID" &&
-          docker-compose config &&
           docker-compose down &&
           docker-compose up -d
           '
