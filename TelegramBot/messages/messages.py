@@ -116,7 +116,7 @@ class Messages:
         def about(commit_id: str, git_describe):
             return f"ℹ️ Версия сборки:\n<a href='https://github.com/Faridik/Carolyn/commit/{commit_id}'>{git_describe}</a>"
 
-    class Spreadsheets:
+    class Google:
         pass
 
     class Stickers:

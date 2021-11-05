@@ -1,10 +1,10 @@
 .vscode
-SpreadsheetsService/models/__pycache__
-SpreadsheetsService/utils/__pycache__
-SpreadsheetsService/tests/__pycache__
-SpreadsheetsService/manager/__pycache__
-SpreadsheetsService/manager/client_secret.json
-SpreadsheetsService/manager/token.json
+GoogleService/models/__pycache__
+GoogleService/utils/__pycache__
+GoogleService/tests/__pycache__
+GoogleService/manager/__pycache__
+GoogleService/manager/client_secret.json
+GoogleService/manager/token.json
 TelegramBot/.secrets
-SpreadsheetsService/.secrets
+GoogleService/.secrets
 TelegramBot/messages/__pycache__
