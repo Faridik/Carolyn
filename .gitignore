@@ -8,3 +8,4 @@ GoogleService/manager/token.json
 TelegramBot/.secrets
 GoogleService/.secrets
 TelegramBot/messages/__pycache__
+.pytest_cache
