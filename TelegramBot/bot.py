@@ -28,7 +28,7 @@ from utils.inline_keyboard import *
 from messages import Messages
 
 ADMIN = "admin"
-HOST = "http://carolyn-spreadsheets:5000"
+HOST = "http://carolyn-google:5000"
 MESSAGES = Messages()
 SUB_TIME_DELTA = datetime.timedelta(minutes=30)
 TOKEN = Path(".secrets/bot_token.txt").read_text()
@@ -69,7 +69,7 @@ def start(update: Update, context: CallbackContext):
         )
         data = req.json()
     except requests.exceptions.RequestException:
-        LOG.exception("@{username} вызвал: Ошибка подключения к сервису Spreadsheets.")
+        LOG.exception("@{username} вызвал: Ошибка подключения к сервису Google.")
         update.message.reply_sticker(MESSAGES.Stickers.DEAD)
         return
 
@@ -321,7 +321,7 @@ def sub(update: Update, context: CallbackContext):
         )
         data = req.json()
     except requests.exceptions.RequestException:
-        LOG.exception("@{user_id} вызвал: Ошибка подключения к сервису Spreadsheets.")
+        LOG.exception("@{user_id} вызвал: Ошибка подключения к сервису Google.")
         update.message.reply_sticker(MESSAGES.Stickers.DEAD)
         return
 
@@ -351,7 +351,7 @@ def unsub(update: Update, context: CallbackContext):
         )
         data = req.json()
     except requests.exceptions.RequestException:
-        LOG.exception("@{user_id} вызвал: Ошибка подключения к сервису Spreadsheets.")
+        LOG.exception("@{user_id} вызвал: Ошибка подключения к сервису Google.")
         update.message.reply_sticker(MESSAGES.Stickers.DEAD)
         return
 
@@ -381,7 +381,7 @@ def variant(update: Update, context: CallbackContext):
         )
         data = req.json()
     except requests.exceptions.RequestException:
-        LOG.exception("@{user_id} вызвал: Ошибка подключения к сервису Spreadsheets.")
+        LOG.exception("@{user_id} вызвал: Ошибка подключения к сервису Google.")
         update.message.reply_sticker(MESSAGES.Stickers.DEAD)
         return
 

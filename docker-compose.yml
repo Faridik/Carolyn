@@ -1,14 +1,14 @@
 version: "3.9"
 
 services:
-  spreadsheets:
-    container_name: "carolyn-spreadsheets"
+  google:
+    container_name: "carolyn-google"
     restart: always
-    build: ./SpreadsheetsService
+    build: ./GoogleService
     ports:
       - "5000:5000"
     volumes:
-      - ./SpreadsheetsService:/app
+      - ./GoogleService:/app
   telegrambot:
     container_name: "carolyn-telegrambot"
     environment:
