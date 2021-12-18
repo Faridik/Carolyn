@@ -1,4 +1,4 @@
-name: deploy-to-Yandex-Cloud
+name: 📦-deploy
 
 on:
   workflow_dispatch:
@@ -14,12 +14,12 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.KEY }}
 
-      - name: Set up keys for Yandex Cloud
+      - name: Set up keys for the server
         run: |
           echo "${{ secrets.key }}" > "$HOME/key"
           chmod 600 "$HOME/key"
 
-      - name: Deploy bot at Yandex Cloud
+      - name: Deploy bot at the server
         run:
           ssh -i $HOME/key carolyn@${{ secrets.HOST }} -o StrictHostKeyChecking=no
           '
