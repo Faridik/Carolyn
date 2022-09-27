@@ -50,9 +50,16 @@ class Messages:
                         + "\n"
                     )
                 summary += f"Σ: {to_str(sum(assignment))}\n"
+            elif is_float == "s":
+                for item in range(0, len(assignment), n_cols):
+                    summary += (
+                        " ".join(list(map(to_str, assignment[item : item + n_cols])))
+                        + "\n"
+                    )
             if deadline != "-":
                 summary += f"\n🕚 Дедлайн: {deadline}\n"
-            summary += f"\n📝 {notes}"
+            if notes:
+                summary += f"\n📝 {notes}"
             return summary
 
         @staticmethod

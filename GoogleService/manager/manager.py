@@ -263,7 +263,7 @@ class Manager:
             assignment_value = list(map(toFloat, assignment_values[student.number - 1]))
             notes_range, n_row = row[ASSIGNMENT_NOTES_RANGES].split(",")
             note = self.get_values(notes_range)[student.number - 1][int(n_row)]
-            note = "Замечаний по работе нет." if note == "-" else f"Замечания:\n{note}"
+            note = "" if note == "-" else f"Замечания:\n{note}"
             student.add_assignment(
                 Assignment(
                     name=row[ASSIGNMENT_NAMES],
